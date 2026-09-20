@@ -1,0 +1,12 @@
+BetterTube is a high-performance, privacy-first media downloader and manager designed for Android.
+
+KEY FEATURES:
+
+• MULTI-PLATFORM DOWNLOADS: Download videos, music, and media streams from hundreds of supported websites powered by the robust yt-dlp extraction engine.
+• POWER DOWNLOADS (aria2): Native aria2 integration supporting BitTorrent, Magnet links, Metalink, and multi-connection HTTP/HTTPS downloads.
+• ENCRYPTED VAULT: Secure sensitive downloads inside an AES-256-GCM encrypted vault with Biometric (fingerprint/face) and custom PIN authentication.
+• HIGH DEFINITION & FORMAT CONVERSION: Select custom resolutions from 4K/1080p to 360p or extract audio directly to MP3, M4A, FLAC, and WAV using embedded FFmpeg.
+• BATCH & PLAYLIST DOWNLOADS: Grab entire playlists and multi-video queues effortlessly with configurable parallel streams.
+• SMART DOWNLOAD QUEUE: Reorder downloads, set individual or global speed limits, pause/resume anytime, and configure WiFi-only downloads to save cellular data.
+• DOWNLOAD SCHEDULING: Set recurring download windows to automatically run tasks during off-peak hours.
+• COMPLETE PRIVACY: Zero tracking, zero third-party analytics, and zero advertising. All download history, vault contents, and preferences remain strictly on your device.

@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Download arrow within 72dp safe zone (viewport 18-90) -->
+    <!-- Downward arrow shaft -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M50,28 L58,28 L58,48 L68,48 L54,62 L40,48 L50,48 Z" />
+    <!-- Downward arrow base line -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M38,65 L70,65 L70,70 L38,70 Z" />
+    <!-- Small play triangle centered in the base -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M50,74 L50,82 L58,78 Z" />
+</vector>

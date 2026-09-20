@@ -1,0 +1,6 @@
+{
+  "name": "BetterTube",
+  "description": "Fast, privacy-first media downloader and encrypted vault for Android.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
