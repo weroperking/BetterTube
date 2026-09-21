@@ -12,18 +12,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       - name: Verify wrapper files exist
         run: |
@@ -45,21 +45,15 @@ jobs:
           echo "All secrets present."
 
       - name: Decode Keystore
-        id: decode_keystore
-        uses: timheuer/base64-to-file@v1.2
-        with:
-          fileName: 'bettertube-release.jks'
-          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
-
-      - name: Verify decoded keystore
         run: |
-          test -f "${{ steps.decode_keystore.outputs.filePath }}" || { echo "ERROR: keystore decode failed"; exit 1; }
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > bettertube-release.jks
+          test -f bettertube-release.jks || { echo "ERROR: keystore decode failed"; exit 1; }
           echo "Keystore decoded successfully."
 
       - name: Create keystore.properties
         run: |
           cat > keystore.properties <<EOF
-          storeFile=${{ steps.decode_keystore.outputs.filePath }}
+          storeFile=$PWD/bettertube-release.jks
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
@@ -70,7 +64,7 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon --stacktrace --warning-mode all
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: BetterTube-Universal-APK
           path: app/build/outputs/apk/release/app-release.apk
