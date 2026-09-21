@@ -1,7 +1,6 @@
-package com.bettertube.app
+package com.bettertube.app.ui.screens.downloads.components
 
-import android.util.Log.ui.screens.downloads.components
-
+import android.util.Log
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

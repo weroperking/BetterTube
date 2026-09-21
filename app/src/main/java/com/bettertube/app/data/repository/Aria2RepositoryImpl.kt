@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -378,7 +379,7 @@ class Aria2RepositoryImpl @Inject constructor(
     override fun close() {
         scope.cancel()
         try {
-            processManager.stop()
+            kotlinx.coroutines.runBlocking { processManager.stop() }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to stop aria2 process", e)
         }

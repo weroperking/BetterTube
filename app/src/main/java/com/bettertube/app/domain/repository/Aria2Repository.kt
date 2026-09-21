@@ -29,6 +29,7 @@ interface Aria2Repository {
     suspend fun setScheduleConfig(config: ScheduleConfig): Result<Unit>
     suspend fun pauseAllActive(): Result<Unit>
     suspend fun resumeAllPaused(): Result<Unit>
+    fun close()
     suspend fun getVersionInfo(): Pair<String, List<String>>?
     suspend fun setMaxPeers(peers: Int): Result<Unit>
     suspend fun setSeedTime(minutes: Int): Result<Unit>

@@ -80,6 +80,7 @@ import com.bettertube.app.domain.model.DownloadTask
 import com.bettertube.app.domain.model.MediaType
 import com.bettertube.app.domain.model.VaultItem
 import com.bettertube.app.domain.model.VaultState
+import com.bettertube.app.R
 import com.bettertube.app.ui.theme.BgSecondary
 import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.SurfaceDark
