@@ -8,7 +8,6 @@
 # Keep generic types for JSON parsing
 -keepattributes Signature
 -keep,allowobfuscation,allowshrinking @com.google.moshi.*
--keep,allowobfuscation,allowshrinking @kotlinx.serialization.*
 
 # Moshi JSON Models & RPC Models
 -keep class com.bettertube.app.data.aria2.rpc.** { *; }
