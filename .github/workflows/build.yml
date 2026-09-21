@@ -61,7 +61,10 @@ jobs:
           echo "keystore.properties created."
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon --stacktrace --warning-mode all
+        env:
+          JAVA_OPTS: ""
+          GRADLE_OPTS: ""
+        run: bash ./gradlew assembleRelease --no-daemon --stacktrace --warning-mode all
 
       - name: Upload APK
         uses: actions/upload-artifact@v5
