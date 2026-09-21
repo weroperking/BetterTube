@@ -4,7 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import com.bettertube.app.data.repository.Aria2Repository
+import com.bettertube.app.domain.repository.Aria2Repository
 import com.bettertube.app.utils.CrashLogger
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
