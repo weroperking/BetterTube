@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -57,7 +58,7 @@ import com.bettertube.app.ui.theme.BgSecondary
 import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.SurfaceDark
 import com.bettertube.app.ui.theme.TextSecondary
-import com.example.R
+import com.bettertube.app.R
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -119,13 +120,13 @@ class MainActivity : FragmentActivity() {
 
     override fun onStop() {
         super.onStop()
-        backgroundedAtMillis = System.currentTimeMillis()
+        backgroundedAtMillis = SystemClock.elapsedRealtime()
     }
 
     override fun onStart() {
         super.onStart()
         if (backgroundedAtMillis > 0L) {
-            val elapsed = System.currentTimeMillis() - backgroundedAtMillis
+            val elapsed = SystemClock.elapsedRealtime() - backgroundedAtMillis
             if (elapsed > 60_000L && vaultRepository.getVaultState().value == VaultState.UNLOCKED) {
                 vaultRepository.lock()
             }

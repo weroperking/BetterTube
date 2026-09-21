@@ -48,7 +48,7 @@ import com.bettertube.app.ui.theme.BetterTubeTheme
 import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.TextSecondary
 import com.bettertube.app.ui.theme.TextTertiary
-import com.example.R
+import com.bettertube.app.R
 import kotlinx.coroutines.launch
 
 data class OnboardingPageData(

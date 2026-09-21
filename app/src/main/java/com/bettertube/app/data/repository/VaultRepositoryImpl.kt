@@ -1,5 +1,7 @@
 package com.bettertube.app.data.repository
 
+import android.os.SystemClock
+
 import android.content.Context
 import androidx.biometric.BiometricManager
 import com.bettertube.app.data.vault.VaultCipher
@@ -89,7 +91,9 @@ class VaultRepositoryImpl @Inject constructor(
         // Clear all decrypted temp files in cacheDir/vault_temp/
         try {
             tempDir.listFiles()?.forEach { it.delete() }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("VaultRepository", "Failed to clear temp files", e)
+        }
     }
 
     override suspend fun moveToVault(taskId: String): Result<VaultItem> {
@@ -127,7 +131,7 @@ class VaultRepositoryImpl @Inject constructor(
             originalPath = task.outputFilePath,
             sizeBytes = originalSize,
             mediaType = task.mediaType,
-            addedAtMillis = System.currentTimeMillis()
+            addedAtMillis = SystemClock.elapsedRealtime()
         )
 
         _vaultItems.update { it + vaultItem }
@@ -216,7 +220,8 @@ class VaultRepositoryImpl @Inject constructor(
             val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
                     BiometricManager.Authenticators.DEVICE_CREDENTIAL
             BiometricManager.from(context).canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("VaultRepository", "Biometric check failed", e)
             false
         }
     }
@@ -238,7 +243,9 @@ class VaultRepositoryImpl @Inject constructor(
             _vaultItems.value = emptyList()
             pinManager.clearPin()
             _vaultState.value = VaultState.UNINITIALIZED
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("VaultRepository", "Failed to clear vault completely", e)
+        }
     }
 
     private fun loadMetadata() {
@@ -268,7 +275,9 @@ class VaultRepositoryImpl @Inject constructor(
                 )
             }
             _vaultItems.value = items
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("VaultRepository", "Failed to load metadata", e)
+        }
     }
 
     private fun persistMetadata() {
@@ -288,13 +297,15 @@ class VaultRepositoryImpl @Inject constructor(
                 array.put(obj)
             }
             atomicWrite(metadataFile, array.toString())
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("VaultRepository", "Failed to clear temp files", e)
+        }
     }
 
     private fun atomicWrite(file: File, content: String) {
         val dir = file.parentFile ?: return
         if (!dir.exists()) dir.mkdirs()
-        val tempFile = File(dir, "${file.name}.${System.currentTimeMillis()}.tmp")
+        val tempFile = File(dir, "${file.name}.${SystemClock.elapsedRealtime()}.tmp")
         tempFile.writeText(content)
         if (!tempFile.renameTo(file)) {
             file.writeText(content)

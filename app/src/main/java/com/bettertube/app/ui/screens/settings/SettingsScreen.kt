@@ -37,7 +37,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +52,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bettertube.app.domain.model.ProxyConfig
 import com.bettertube.app.domain.model.ScheduleConfig
@@ -69,8 +69,8 @@ import com.bettertube.app.ui.theme.BetterTubeTheme
 import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.TextSecondary
 import com.bettertube.app.utils.FormatUtils
-import com.example.BuildConfig
-import com.example.R
+import com.bettertube.app.BuildConfig
+import com.bettertube.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -83,16 +83,16 @@ fun SettingsScreen(
     navController: NavController? = null,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val daemonRunning by viewModel.daemonRunning.collectAsState()
-    val proxyConfig by viewModel.proxyConfig.collectAsState()
-    val scheduleConfig by viewModel.scheduleConfig.collectAsState()
-    val globalSpeedLimit by viewModel.globalSpeedLimit.collectAsState()
-    val aria2Version by viewModel.aria2Version.collectAsState()
-    val aria2Features by viewModel.aria2Features.collectAsState()
-    val maxPeers by viewModel.maxPeers.collectAsState()
-    val seedTime by viewModel.seedTime.collectAsState()
-    val customHeaders by viewModel.customHeaders.collectAsState()
-    val reduceMotion by viewModel.reduceMotion.collectAsState()
+    val daemonRunning by viewModel.daemonRunning.collectAsStateWithLifecycle()
+    val proxyConfig by viewModel.proxyConfig.collectAsStateWithLifecycle()
+    val scheduleConfig by viewModel.scheduleConfig.collectAsStateWithLifecycle()
+    val globalSpeedLimit by viewModel.globalSpeedLimit.collectAsStateWithLifecycle()
+    val aria2Version by viewModel.aria2Version.collectAsStateWithLifecycle()
+    val aria2Features by viewModel.aria2Features.collectAsStateWithLifecycle()
+    val maxPeers by viewModel.maxPeers.collectAsStateWithLifecycle()
+    val seedTime by viewModel.seedTime.collectAsStateWithLifecycle()
+    val customHeaders by viewModel.customHeaders.collectAsStateWithLifecycle()
+    val reduceMotion by viewModel.reduceMotion.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -133,7 +133,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Settings",
+                        text = stringResource(R.string.settings_title),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge
                     )
@@ -307,7 +307,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.size(8.dp))
                         Text(
-                            text = "BitTorrent may not work on some networks due to carrier firewalls.",
+                            text = stringResource(R.string.bit_torrent_warning),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )

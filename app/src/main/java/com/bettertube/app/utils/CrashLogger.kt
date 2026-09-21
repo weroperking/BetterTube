@@ -2,7 +2,7 @@ package com.bettertube.app.utils
 
 import android.content.Context
 import android.os.Build
-import com.example.R
+import com.bettertube.app.R
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -17,7 +17,7 @@ class CrashLogger(
         try {
             writeCrashLog(t, e)
         } catch (ex: Exception) {
-            // Avoid failing inside crash handler
+            android.util.Log.e("CrashLogger", "Failed to write crash log", ex)
         } finally {
             defaultHandler?.uncaughtException(t, e)
         }
@@ -40,6 +40,7 @@ class CrashLogger(
                 context.packageManager.getPackageInfo(context.packageName, 0)
             }
         } catch (ex: Exception) {
+            android.util.Log.w("CrashLogger", "Failed to get package info", ex)
             null
         }
 

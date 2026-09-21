@@ -1,6 +1,7 @@
 package com.bettertube.app.service
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -33,7 +34,7 @@ class ScheduleEnforcerWorker @AssistedInject constructor(
             }
             Result.success()
         } catch (e: Exception) {
-            // Edge Case 4: Fail silently if aria2 daemon is stopped
+            Log.w("ScheduleEnforcerWorker", "Edge Case 4: Fail silently if aria2 daemon is stopped", e)
             Result.success()
         }
     }

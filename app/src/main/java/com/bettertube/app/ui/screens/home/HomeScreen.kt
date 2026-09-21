@@ -68,7 +68,7 @@ import com.bettertube.app.ui.theme.BetterTubeTheme
 import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.utils.rememberHaptics
 import com.bettertube.app.utils.DeviceStateUtils
-import com.example.R
+import com.bettertube.app.R
 import kotlinx.coroutines.launch
 
 @Composable
@@ -167,7 +167,7 @@ fun HomeScreen(
                     onClick = { showLowStorageDialog = false },
                     modifier = Modifier.testTag("storage_low_ok_button")
                 ) {
-                    Text(text = "OK")
+                    Text(text = stringResource(R.string.ok))
                 }
             },
             modifier = Modifier.testTag("storage_low_dialog")

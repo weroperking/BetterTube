@@ -5,7 +5,7 @@ import com.bettertube.app.ui.screens.home.model.Platform
 import com.bettertube.app.ui.screens.home.model.RecommendedItem
 import com.bettertube.app.ui.screens.home.model.TrendingItem
 import com.bettertube.app.ui.theme.BrandPrimary
-import com.example.R
+import com.bettertube.app.R
 
 object HomeMockData {
     val platforms: List<Platform> = listOf(

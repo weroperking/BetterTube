@@ -59,7 +59,7 @@ import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.TextSecondary
 import com.bettertube.app.ui.utils.rememberHaptics
 import com.bettertube.app.utils.FormatUtils
-import com.example.R
+import com.bettertube.app.R
 
 @Composable
 fun QualityPickerDialog(

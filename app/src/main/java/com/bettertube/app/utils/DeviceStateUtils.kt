@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Environment
 import android.os.PowerManager
 import android.os.StatFs
+import android.util.Log
+import android.util.Log
 
 object DeviceStateUtils {
 
@@ -16,6 +18,7 @@ object DeviceStateUtils {
             val availableBytes = stat.availableBlocksLong * stat.blockSizeLong
             availableBytes >= minRequiredBytes
         } catch (e: Exception) {
+            Log.w("DeviceStateUtils", "Storage check failed, assuming adequate", e)
             true // fallback to true if stat fails
         }
     }
@@ -25,6 +28,7 @@ object DeviceStateUtils {
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             powerManager?.isPowerSaveMode == true
         } catch (e: Exception) {
+            Log.w("DeviceStateUtils", "Power save mode check failed", e)
             false
         }
     }

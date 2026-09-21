@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -17,7 +18,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.bettertube.app.MainActivity
-import com.example.R
+import com.bettertube.app.R
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
 import com.bettertube.app.domain.repository.DownloadRepository
@@ -150,7 +151,7 @@ class DownloadForegroundService : Service() {
         }
         if (count == 0) return true
 
-        val now = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
         if (now - lastNotificationTimeMs < 1000L) return false
 
         if (count == 1) {
@@ -175,7 +176,7 @@ class DownloadForegroundService : Service() {
     }
 
     private fun recordMetrics(activeTasks: List<DownloadTask>) {
-        lastNotificationTimeMs = System.currentTimeMillis()
+        lastNotificationTimeMs = SystemClock.elapsedRealtime()
         lastPostedActiveCount = activeTasks.size
         if (activeTasks.size == 1) {
             val task = activeTasks.first()

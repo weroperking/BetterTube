@@ -23,10 +23,15 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: ''
+          packages: 'platform-tools build-tools;34.0.0,platforms;android-34'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Verify gradle wrapper files
+        run: |
+          test -f gradle/wrapper/gradle-wrapper.jar || { echo "ERROR: gradle-wrapper.jar missing"; exit 1; }
+          test -f gradle/wrapper/gradle-wrapper.properties || { echo "ERROR: gradle-wrapper.properties missing"; exit 1; }
+          test -f gradlew || { echo "ERROR: gradlew missing"; exit 1; }
+          chmod +x gradlew
+          echo "Gradle wrapper files verified."
 
       - name: Decode Keystore
         id: decode_keystore

@@ -54,7 +54,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,7 +71,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bettertube.app.domain.model.DownloadTask
@@ -93,22 +94,22 @@ fun FilesScreen(
     modifier: Modifier = Modifier,
     viewModel: FilesViewModel = hiltViewModel()
 ) {
-    val vaultState by viewModel.vaultState.collectAsState()
-    val filteredItems by viewModel.filteredItems.collectAsState()
-    val totalVaultItems by viewModel.vaultItems.collectAsState()
-    val selectedFilter by viewModel.selectedFilter.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val pinInput by viewModel.pinInput.collectAsState()
-    val confirmPinInput by viewModel.confirmPinInput.collectAsState()
-    val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val showChangePinDialog by viewModel.showChangePinDialog.collectAsState()
-    val showImportDialog by viewModel.showImportDialog.collectAsState()
-    val completedDownloads by viewModel.completedDownloads.collectAsState()
+    val vaultState by viewModel.vaultState.collectAsStateWithLifecycle()
+    val filteredItems by viewModel.filteredItems.collectAsStateWithLifecycle()
+    val totalVaultItems by viewModel.vaultItems.collectAsStateWithLifecycle()
+    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val pinInput by viewModel.pinInput.collectAsStateWithLifecycle()
+    val confirmPinInput by viewModel.confirmPinInput.collectAsStateWithLifecycle()
+    val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val showChangePinDialog by viewModel.showChangePinDialog.collectAsStateWithLifecycle()
+    val showImportDialog by viewModel.showImportDialog.collectAsStateWithLifecycle()
+    val completedDownloads by viewModel.completedDownloads.collectAsStateWithLifecycle()
 
-    val currentPinInput by viewModel.currentPinInput.collectAsState()
-    val newPinInput by viewModel.newPinInput.collectAsState()
-    val confirmNewPinInput by viewModel.confirmNewPinInput.collectAsState()
+    val currentPinInput by viewModel.currentPinInput.collectAsStateWithLifecycle()
+    val newPinInput by viewModel.newPinInput.collectAsStateWithLifecycle()
+    val confirmNewPinInput by viewModel.confirmNewPinInput.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val activity = context as? FragmentActivity
@@ -226,7 +227,7 @@ fun FilesScreen(
     itemToRestore?.let { item ->
         AlertDialog(
             onDismissRequest = { itemToRestore = null },
-            title = { Text("Restore File to Downloads") },
+            title = { Text(stringResource(R.string.restore_file_title)) },
             text = { Text("Are you sure you want to decrypt \"${item.fileName}\" and restore it to your Downloads directory?") },
             confirmButton = {
                 Button(
@@ -236,7 +237,7 @@ fun FilesScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
                 ) {
-                    Text("Restore", color = Color.Black)
+                    Text(stringResource(R.string.restore_item), color = Color.Black)
                 }
             },
             dismissButton = {
@@ -252,7 +253,7 @@ fun FilesScreen(
     itemToDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { itemToDelete = null },
-            title = { Text("Permanently Delete") },
+            title = { Text(stringResource(R.string.permanently_delete)) },
             text = { Text("This will permanently delete \"${item.fileName}\" from your encrypted vault. This action cannot be undone.") },
             confirmButton = {
                 Button(
@@ -262,7 +263,7 @@ fun FilesScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.onError)
+                    Text(stringResource(R.string.delete_item), color = MaterialTheme.colorScheme.onError)
                 }
             },
             dismissButton = {
@@ -331,7 +332,7 @@ private fun VaultSetupView(
         OutlinedTextField(
             value = pinInput,
             onValueChange = onPinChange,
-            label = { Text("Enter 4–8 Digit PIN") },
+            label = { Text(stringResource(R.string.vault_setup_pin_label)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Next),
             singleLine = true,
@@ -349,7 +350,7 @@ private fun VaultSetupView(
         OutlinedTextField(
             value = confirmPinInput,
             onValueChange = onConfirmPinChange,
-            label = { Text("Confirm PIN") },
+            label = { Text(stringResource(R.string.vault_setup_confirm_label)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onSubmit() }),
@@ -410,7 +411,7 @@ private fun VaultSetupView(
                 .height(48.dp)
                 .testTag("vault_setup_submit")
         ) {
-            Text("Create Vault", color = Color.Black, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.vault_setup_create), color = Color.Black, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -468,7 +469,7 @@ private fun VaultLockedView(
         OutlinedTextField(
             value = pinInput,
             onValueChange = onPinChange,
-            label = { Text("Enter PIN") },
+            label = { Text(stringResource(R.string.vault_locked_pin_label)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onUnlockPin() }),
@@ -494,7 +495,7 @@ private fun VaultLockedView(
                 .height(48.dp)
                 .testTag("vault_unlock_button")
         ) {
-            Text("Unlock", color = Color.Black, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.vault_locked_unlock), color = Color.Black, fontWeight = FontWeight.SemiBold)
         }
 
         if (isBiometricSupported && isBiometricEnabled) {
@@ -855,13 +856,13 @@ private fun ChangePinDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Change Vault PIN") },
+        title = { Text(stringResource(R.string.change_pin_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = currentPin,
                     onValueChange = onCurrentPinChange,
-                    label = { Text("Current PIN") },
+                    label = { Text(stringResource(R.string.current_pin_label)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
@@ -873,7 +874,7 @@ private fun ChangePinDialog(
                 OutlinedTextField(
                     value = newPin,
                     onValueChange = onNewPinChange,
-                    label = { Text("New PIN (4–8 digits)") },
+                    label = { Text(stringResource(R.string.new_pin_label)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
@@ -885,7 +886,7 @@ private fun ChangePinDialog(
                 OutlinedTextField(
                     value = confirmNewPin,
                     onValueChange = onConfirmNewPinChange,
-                    label = { Text("Confirm New PIN") },
+                    label = { Text(stringResource(R.string.confirm_new_pin_label)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
@@ -902,7 +903,7 @@ private fun ChangePinDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary),
                 modifier = Modifier.testTag("change_pin_submit")
             ) {
-                Text("Update PIN", color = Color.Black)
+                Text(stringResource(R.string.update_pin), color = Color.Black)
             }
         },
         dismissButton = {

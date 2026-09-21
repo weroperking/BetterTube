@@ -38,7 +38,7 @@ class Aria2RepositoryImpl @Inject constructor(
     private val rpcClient: Aria2RpcClient,
     private val processManager: Aria2ProcessManager,
     private val scheduleConfigStore: ScheduleConfigStore
-) : Aria2Repository {
+) : Aria2Repository, AutoCloseable {
 
     companion object {
         private const val TAG = "Aria2RepositoryImpl"
@@ -319,6 +319,7 @@ class Aria2RepositoryImpl @Inject constructor(
                 password = obj.optString("password").takeIf { it.isNotBlank() }
             )
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to load proxy config", e)
             ProxyConfig()
         }
     }
@@ -354,13 +355,14 @@ class Aria2RepositoryImpl @Inject constructor(
             val root = loadSettingsJson()
             if (root.has(KEY_SPEED_LIMIT)) root.getLong(KEY_SPEED_LIMIT) else null
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to load global speed limit", e)
             null
         }
     }
 
     private fun loadSettingsJson(): JSONObject {
         return if (settingsFile.exists()) {
-            try { JSONObject(settingsFile.readText()) } catch (e: Exception) { JSONObject() }
+            try { JSONObject(settingsFile.readText()) } catch (e: Exception) { Log.w(TAG, "Failed to read settings JSON", e); JSONObject() }
         } else {
             JSONObject()
         }
@@ -370,5 +372,15 @@ class Aria2RepositoryImpl @Inject constructor(
         val tmp = File(context.filesDir, "settings.json.tmp")
         tmp.writeText(root.toString(2))
         tmp.renameTo(settingsFile)
+    }
+
+
+    override fun close() {
+        scope.cancel()
+        try {
+            processManager.stop()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to stop aria2 process", e)
+        }
     }
 }

@@ -61,7 +61,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.bettertube.app.ui.theme.BetterTubeTheme
 import com.bettertube.app.utils.UrlValidator
-import com.example.R
+import com.bettertube.app.R
 import kotlinx.coroutines.launch
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -108,7 +108,8 @@ fun BrowserScreen(
                 WebStorage.getInstance().deleteAllData()
                 webView?.destroy()
                 webView = null
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.util.Log.e("BetterTube", "Error during WebView cleanup", e)
             }
         }
     }
@@ -210,7 +211,8 @@ fun BrowserScreen(
                                         val intent = Intent.parseUri(reqUrl.toString(), Intent.URI_INTENT_SCHEME)
                                         ctx.startActivity(intent)
                                         true
-                                    } catch (_: Exception) {
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("BetterTube", "Intent launch failed", e)
                                         true
                                     }
                                 }

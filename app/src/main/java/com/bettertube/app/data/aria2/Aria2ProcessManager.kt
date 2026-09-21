@@ -2,12 +2,13 @@ package com.bettertube.app.data.aria2
 
 import android.content.Context
 import android.util.Log
-import com.example.BuildConfig
+import com.bettertube.app.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -118,7 +119,7 @@ class Aria2ProcessManager @Inject constructor(
                 val startedProcess = pb.start()
                 process = startedProcess
 
-                Thread.sleep(500)
+                delay(500L)
 
                 if (startedProcess.isAlive) {
                     currentPort = port
@@ -151,6 +152,7 @@ class Aria2ProcessManager @Inject constructor(
                     p.destroyForcibly()
                 }
             } catch (e: Exception) {
+                Log.w(TAG, "Exception while waiting for aria2c to stop", e)
                 p.destroyForcibly()
             }
             process = null
@@ -176,7 +178,7 @@ class Aria2ProcessManager @Inject constructor(
     private fun persistChosenPort(port: Int) {
         try {
             val json = if (settingsFile.exists()) {
-                try { JSONObject(settingsFile.readText()) } catch (e: Exception) { JSONObject() }
+                try { JSONObject(settingsFile.readText()) } catch (e: Exception) { Log.w(TAG, "Failed to read settings.json for port persistence", e); JSONObject() }
             } else {
                 JSONObject()
             }

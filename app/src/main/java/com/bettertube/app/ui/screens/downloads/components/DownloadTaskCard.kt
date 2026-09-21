@@ -1,5 +1,7 @@
 package com.bettertube.app.ui.screens.downloads.components
 
+import android.os.SystemClock
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,7 +50,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.R
+import com.bettertube.app.R
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
 import com.bettertube.app.domain.model.MediaType
@@ -350,7 +352,7 @@ fun DownloadTaskCardPreviewDownloading() {
                 etaSeconds = 14L,
                 outputFilePath = null,
                 errorMessage = null,
-                createdAtMillis = System.currentTimeMillis(),
+                createdAtMillis = SystemClock.elapsedRealtime(),
                 mediaType = MediaType.VIDEO
             ),
             onPause = {},
@@ -383,7 +385,7 @@ fun DownloadTaskCardPreviewCompleted() {
                 etaSeconds = 0L,
                 outputFilePath = "/path/to/file.mp4",
                 errorMessage = null,
-                createdAtMillis = System.currentTimeMillis(),
+                createdAtMillis = SystemClock.elapsedRealtime(),
                 mediaType = MediaType.VIDEO
             ),
             onPause = {},
@@ -416,7 +418,7 @@ fun DownloadTaskCardPreviewFailed() {
                 etaSeconds = 0L,
                 outputFilePath = null,
                 errorMessage = "Network timeout while fetching video segments",
-                createdAtMillis = System.currentTimeMillis(),
+                createdAtMillis = SystemClock.elapsedRealtime(),
                 mediaType = MediaType.VIDEO
             ),
             onPause = {},
@@ -449,7 +451,7 @@ fun DownloadTaskCardPreviewPaused() {
                 etaSeconds = 0L,
                 outputFilePath = null,
                 errorMessage = null,
-                createdAtMillis = System.currentTimeMillis(),
+                createdAtMillis = SystemClock.elapsedRealtime(),
                 mediaType = MediaType.VIDEO
             ),
             onPause = {},
@@ -482,7 +484,7 @@ fun DownloadTaskCardPreviewWaiting() {
                 etaSeconds = 0L,
                 outputFilePath = null,
                 errorMessage = null,
-                createdAtMillis = System.currentTimeMillis(),
+                createdAtMillis = SystemClock.elapsedRealtime(),
                 mediaType = MediaType.VIDEO
             ),
             onPause = {},
