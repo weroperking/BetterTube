@@ -6,6 +6,7 @@ import android.os.CombinedVibration
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +23,7 @@ class Haptics(private val context: Context) {
                 context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             }
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to initialize vibrator", e)
             null
         }
     }
@@ -37,7 +39,7 @@ class Haptics(private val context: Context) {
                 v.vibrate(20L)
             }
         } catch (e: Exception) {
-            // Ignore if vibration fails
+            Log.w(TAG, "Vibration failed: click", e)
         }
     }
 
@@ -53,7 +55,7 @@ class Haptics(private val context: Context) {
                 v.vibrate(pattern, -1)
             }
         } catch (e: Exception) {
-            // Ignore
+            Log.w(TAG, "Vibration failed: confirm", e)
         }
     }
 
@@ -69,7 +71,7 @@ class Haptics(private val context: Context) {
                 v.vibrate(pattern, -1)
             }
         } catch (e: Exception) {
-            // Ignore
+            Log.w(TAG, "Vibration failed: error", e)
         }
     }
 
@@ -84,8 +86,12 @@ class Haptics(private val context: Context) {
                 v.vibrate(15L)
             }
         } catch (e: Exception) {
-            // Ignore
+            Log.w(TAG, "Vibration failed: selectionChanged", e)
         }
+    }
+
+    companion object {
+        private const val TAG = "Haptics"
     }
 }
 

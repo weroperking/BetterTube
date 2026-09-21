@@ -1,5 +1,6 @@
 package com.bettertube.app.domain.usecase
 
+import android.os.SystemClock
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
 import com.bettertube.app.domain.model.MediaFormat
@@ -35,7 +36,7 @@ class StartDownloadUseCase @Inject constructor(
             etaSeconds = 0L,
             outputFilePath = null,
             errorMessage = null,
-            createdAtMillis = System.currentTimeMillis()
+            createdAtMillis = SystemClock.elapsedRealtime()
         )
         emit(repository.startDownload(task))
     }.flowOn(Dispatchers.IO)

@@ -1,5 +1,7 @@
 package com.bettertube.app.ui.screens.downloads
 
+import android.os.SystemClock
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -31,7 +33,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bettertube.app.domain.model.Aria2Download
 import com.bettertube.app.domain.model.DownloadStatus
@@ -66,7 +68,7 @@ import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.SurfaceDark
 import com.bettertube.app.ui.theme.TextSecondary
 import com.bettertube.app.ui.utils.rememberHaptics
-import com.example.R
+import com.bettertube.app.R
 
 @Composable
 fun DownloadsScreen(
@@ -74,10 +76,10 @@ fun DownloadsScreen(
     modifier: Modifier = Modifier,
     viewModel: DownloadsViewModel = hiltViewModel()
 ) {
-    val tasks by viewModel.tasks.collectAsState()
-    val aria2Downloads by viewModel.aria2Downloads.collectAsState()
-    val selectedFilter by viewModel.selectedFilter.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val tasks by viewModel.tasks.collectAsStateWithLifecycle()
+    val aria2Downloads by viewModel.aria2Downloads.collectAsStateWithLifecycle()
+    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
@@ -472,7 +474,7 @@ fun DownloadsScreenPreview() {
                     etaSeconds = 25L,
                     outputFilePath = null,
                     errorMessage = null,
-                    createdAtMillis = System.currentTimeMillis(),
+                    createdAtMillis = SystemClock.elapsedRealtime(),
                     mediaType = MediaType.VIDEO
                 )
             ),

@@ -1,4 +1,6 @@
-package com.bettertube.app.ui.screens.downloads.components
+package com.bettertube.app
+
+import android.util.Log.ui.screens.downloads.components
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -66,7 +68,7 @@ fun AddPowerDownloadDialog(
                     isMetalinkFile = false
                 }
             } catch (e: Exception) {
-                // Ignore
+                Log.w("AddPowerDownloadDialog", "Failed to read torrent file", e)
             }
         }
     }
@@ -83,7 +85,7 @@ fun AddPowerDownloadDialog(
                     isMetalinkFile = true
                 }
             } catch (e: Exception) {
-                // Ignore
+                Log.w("AddPowerDownloadDialog", "Failed to read metalink file", e)
             }
         }
     }

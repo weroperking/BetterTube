@@ -1,5 +1,7 @@
 package com.bettertube.app.data.repository
 
+import android.os.SystemClock
+
 import android.content.Context
 import android.util.Log
 import com.bettertube.app.data.engine.YtDlpEngine
@@ -104,7 +106,7 @@ class DownloadRepositoryImpl(
         }
 
         val mediaType = if (preset.name.startsWith("AUDIO_")) MediaType.AUDIO else MediaType.VIDEO
-        val baseTime = System.currentTimeMillis()
+        val baseTime = SystemClock.elapsedRealtime()
         val createdTasks = mutableListOf<DownloadTask>()
 
         selectedEntries.forEach { entry ->
@@ -435,8 +437,8 @@ class DownloadRepositoryImpl(
                     }
                 }
             }
-        } catch (_: Exception) {
-            // Best-effort cleanup
+        } catch (e: Exception) {
+                        Log.w("DownloadRepository", "Best-effort cleanup failed", e)
         }
     }
 
@@ -518,7 +520,7 @@ class DownloadRepositoryImpl(
     private fun atomicWrite(file: File, content: String) {
         val dir = file.parentFile ?: return
         if (!dir.exists()) dir.mkdirs()
-        val tempFile = File(dir, "${file.name}.${System.currentTimeMillis()}.tmp")
+        val tempFile = File(dir, "${file.name}.${SystemClock.elapsedRealtime()}.tmp")
         tempFile.writeText(content)
         if (!tempFile.renameTo(file)) {
             file.writeText(content)
@@ -535,8 +537,8 @@ class DownloadRepositoryImpl(
             val obj = JSONObject(jsonString)
             _globalSpeedLimit.value = if (obj.has("globalSpeedLimit")) obj.getLong("globalSpeedLimit") else null
             _wifiOnly.value = obj.optBoolean("wifiOnly", false)
-        } catch (_: Exception) {
-            // Recoverable
+        } catch (e: Exception) {
+                        Log.w("DownloadRepository", "Recoverable error", e)
         }
     }
 
@@ -548,8 +550,8 @@ class DownloadRepositoryImpl(
                 put("wifiOnly", _wifiOnly.value)
             }
             atomicWrite(file, obj.toString())
-        } catch (_: Exception) {
-            // Recoverable
+        } catch (e: Exception) {
+                        Log.w("DownloadRepository", "Recoverable error", e)
         }
     }
 
@@ -565,8 +567,8 @@ class DownloadRepositoryImpl(
                 list.add(array.getString(i))
             }
             _queueOrder.value = list
-        } catch (_: Exception) {
-            // Recoverable
+        } catch (e: Exception) {
+                        Log.w("DownloadRepository", "Recoverable error", e)
         }
     }
 
@@ -576,8 +578,8 @@ class DownloadRepositoryImpl(
             val array = JSONArray()
             _queueOrder.value.forEach { array.put(it) }
             atomicWrite(file, array.toString())
-        } catch (_: Exception) {
-            // Recoverable
+        } catch (e: Exception) {
+                        Log.w("DownloadRepository", "Recoverable error", e)
         }
     }
 
@@ -638,7 +640,7 @@ class DownloadRepositoryImpl(
                     etaSeconds = obj.optLong("etaSeconds", 0L),
                     outputFilePath = if (obj.has("outputFilePath")) obj.getString("outputFilePath") else null,
                     errorMessage = errorMessage,
-                    createdAtMillis = obj.optLong("createdAtMillis", System.currentTimeMillis()),
+                    createdAtMillis = obj.optLong("createdAtMillis", SystemClock.elapsedRealtime()),
                     mediaType = mediaType,
                     processId = processId,
                     lastAttemptUrl = lastAttemptUrl,
@@ -654,8 +656,8 @@ class DownloadRepositoryImpl(
                 loadedMap[task.id] = task
             }
             _tasks.value = loadedMap
-        } catch (_: Exception) {
-            // Silently recover if cache file was corrupted
+        } catch (e: Exception) {
+                        Log.w("DownloadRepository", "Failed to load task cache", e)
         }
     }
 
@@ -696,8 +698,8 @@ class DownloadRepositoryImpl(
                 array.put(obj)
             }
             atomicWrite(file, array.toString())
-        } catch (_: Exception) {
-            // Non-fatal persistence
+        } catch (e: Exception) {
+                        Log.w("DownloadRepository", "Non-fatal persistence error", e)
         }
     }
 }

@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.TextSecondary
 import com.bettertube.app.utils.CrashLogger
-import com.example.R
+import com.bettertube.app.R
 import java.io.File
 
 @Composable

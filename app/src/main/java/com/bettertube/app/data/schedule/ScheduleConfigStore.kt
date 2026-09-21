@@ -31,7 +31,7 @@ class ScheduleConfigStore @Inject constructor(
     fun saveConfig(newConfig: ScheduleConfig): Result<Unit> {
         return try {
             val root = if (settingsFile.exists()) {
-                try { JSONObject(settingsFile.readText()) } catch (e: Exception) { JSONObject() }
+                try { JSONObject(settingsFile.readText()) } catch (e: Exception) { Log.w(TAG, "Failed to read settings JSON", e); JSONObject() }
             } else {
                 JSONObject()
             }

@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.bettertube.app.data.repository.Aria2Repository
 import com.bettertube.app.utils.CrashLogger
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
@@ -11,6 +12,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,6 +21,9 @@ class BetterTubeApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var aria2Repository: Aria2Repository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -47,6 +52,16 @@ class BetterTubeApp : Application(), Configuration.Provider {
         }
     }
 
+    override fun onTerminate() {
+        super.onTerminate()
+        applicationScope.cancel()
+        try {
+            aria2Repository.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to close aria2 repository", e)
+        }
+    }
+
     fun isEngineReady(): Boolean = engineReady
 
     companion object {
@@ -56,4 +71,3 @@ class BetterTubeApp : Application(), Configuration.Provider {
         fun isEngineReady(): Boolean = instance?.isEngineReady() ?: false
     }
 }
-

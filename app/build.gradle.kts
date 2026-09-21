@@ -13,11 +13,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.bettertube.app"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.example"
+    applicationId = "com.bettertube.app"
     minSdk = 24
     targetSdk = 34
     versionCode = 1
@@ -68,6 +68,7 @@ android {
     targetCompatibility = JavaVersion.VERSION_17
   }
   kotlin {
+    jvmToolchain(17)
     compilerOptions {
       jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
