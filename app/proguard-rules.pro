@@ -53,7 +53,7 @@
 
 # Retrofit
 -dontwarn retrofit2.**
--keep,allowunchecked,allowobfuscation,allowshrinking @interface retrofit2.*
+-keep,allowobfuscation,allowshrinking @interface retrofit2.*
 
 # Moshi Codegen
 -keep class com.bettertube.app.data.aria2.rpc.** { *; }
