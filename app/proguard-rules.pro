@@ -7,7 +7,7 @@
 
 # Keep generic types for JSON parsing
 -keepattributes Signature
--keep,allowobfuscation,allowshrinking @com.google.moshi.*
+-keep,allowobfuscation,allowshrinking @interface com.google.moshi.*
 
 # Moshi JSON Models & RPC Models
 -keep class com.bettertube.app.data.aria2.rpc.** { *; }
@@ -26,7 +26,7 @@
 -keep class * implements com.bettertube.app.domain.repository.*
 
 # Hilt / Dagger generated code
--keep,allowobfuscation,allowshrinking @dagger.hilt.android.AndroidEntryPoint
+-keep,allowobfuscation,allowshrinking @interface dagger.hilt.android.AndroidEntryPoint
 
 # Jetpack Compose
 -dontwarn androidx.compose.**
@@ -53,7 +53,7 @@
 
 # Retrofit
 -dontwarn retrofit2.**
--keep,allowunchecked,allowobfuscation,allowshrinking @retrofit2.*
+-keep,allowunchecked,allowobfuscation,allowshrinking @interface retrofit2.*
 
 # Moshi Codegen
 -keep class com.bettertube.app.data.aria2.rpc.** { *; }
