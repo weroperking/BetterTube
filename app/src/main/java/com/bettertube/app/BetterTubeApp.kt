@@ -37,6 +37,7 @@ class BetterTubeApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Initialize the media extraction engines and crash reporting on the IO dispatcher.
         CrashLogger.install(this)
         instance = this
         applicationScope.launch {
