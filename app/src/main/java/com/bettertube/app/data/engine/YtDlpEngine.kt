@@ -18,6 +18,8 @@ import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 
+data class DownloadResult(val finalPath: String)
+
 open class YtDlpEngine @Inject constructor(
     @ApplicationContext private val context: Context? = null
 ) {
@@ -224,7 +226,7 @@ open class YtDlpEngine @Inject constructor(
         embedSubtitles: Boolean = false,
         allowPlaylist: Boolean = false,
         onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-    ): Result<String> = withContext(Dispatchers.IO) {
+    ): Result<DownloadResult> = withContext(Dispatchers.IO) {
         try {
             val parentDir = context?.getExternalFilesDir(null) ?: File(System.getProperty("java.io.tmpdir", "/tmp"))
             val downloadDir = File(parentDir, "BetterTube")
@@ -252,7 +254,6 @@ open class YtDlpEngine @Inject constructor(
                 addOption("--downloader", "aria2c")
                 addOption("--downloader-args", aria2Args)
 
-                // Apply preset args
                 val presetArgs = preset.toYtDlpArgs()
                 var i = 0
                 while (i < presetArgs.size) {
@@ -284,9 +285,16 @@ open class YtDlpEngine @Inject constructor(
                 addOption("--no-overwrites")
                 addOption("--no-part")
                 addOption("-o", "${downloadDir.absolutePath}/%(title)s.%(ext)s")
+                addOption("--print", "after_move:filepath")
+                addOption("--no-simulate")
             }
 
-            YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, _ ->
+            var finalPath: String? = null
+            YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, line ->
+                val trimmed = line.trim()
+                if (trimmed.isNotEmpty() && trimmed.startsWith("/")) {
+                    finalPath = trimmed
+                }
                 val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
                 onProgress(
                     normalizedPercent,
@@ -297,7 +305,11 @@ open class YtDlpEngine @Inject constructor(
                 )
             }
 
-            Result.success(taskId)
+            val path = finalPath
+            if (path != null) {
+                return@withContext Result.success(DownloadResult(path))
+            }
+            return@withContext Result.failure(IllegalStateException("Download completed but final path not captured"))
         } catch (e: Exception) {
             Result.failure(EngineException.DownloadFailed(e.message ?: "Download failed", e))
         }

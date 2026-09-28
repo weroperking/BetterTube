@@ -1,6 +1,7 @@
 package com.bettertube.app.data.repository
 
 import com.bettertube.app.data.engine.YtDlpEngine
+import com.bettertube.app.data.engine.DownloadResult
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
 import com.bettertube.app.domain.model.ExtractionPreset
@@ -31,7 +32,7 @@ class DownloadRepositoryWifiTest {
             processId: String,
             speedLimitBytesPerSecond: Long?,
             onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-        ): Result<String> {
+        ): Result<DownloadResult> {
             startDownloadCalled = true
             kotlinx.coroutines.awaitCancellation()
         }
@@ -48,7 +49,7 @@ class DownloadRepositoryWifiTest {
             embedSubtitles: Boolean,
             allowPlaylist: Boolean,
             onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-        ): Result<String> {
+        ): Result<DownloadResult> {
             startDownloadCalled = true
             kotlinx.coroutines.awaitCancellation()
         }

@@ -232,12 +232,8 @@ class DownloadRepositoryImpl(
             }
 
             return downloadResult.fold(
-                onSuccess = {
-                    val outputDir = runCatching { context?.getExternalFilesDir(null as String?) }.getOrNull()
-                    val ext = if (task.mediaType == MediaType.AUDIO) "mp3" else "mp4"
-                    val outputFilePath = if (outputDir != null) {
-                        "${outputDir.absolutePath}/BetterTube/${task.title}.$ext"
-                    } else null
+                onSuccess = { result ->
+                    val outputFilePath = result.finalPath
 
                     _tasks.update { currentMap ->
                         val current = currentMap[task.id] ?: task
@@ -378,12 +374,8 @@ class DownloadRepositoryImpl(
                 }
 
                 downloadResult.fold(
-                    onSuccess = {
-                        val outputDir = runCatching { context?.getExternalFilesDir(null as String?) }.getOrNull()
-                        val ext = if (task.mediaType == MediaType.AUDIO) "mp3" else "mp4"
-                        val outputFilePath = if (outputDir != null) {
-                            "${outputDir.absolutePath}/BetterTube/${task.title}.$ext"
-                        } else null
+                    onSuccess = { result ->
+                        val outputFilePath = result.finalPath
 
                         _tasks.update { currentMap ->
                             val current = currentMap[id] ?: updatedTask
@@ -459,24 +451,26 @@ class DownloadRepositoryImpl(
 
     private fun deletePartialFiles(task: DownloadTask) {
         try {
-            task.outputFilePath?.let { path ->
-                val file = File(path)
-                if (file.exists()) file.delete()
-                val aria2File = File("$path.aria2")
-                if (aria2File.exists()) aria2File.delete()
+            task.partialFilePath?.let { path ->
+                File(path).takeIf { it.exists() }?.delete()
             }
 
-            val parentDir = context?.getExternalFilesDir(null) ?: File(System.getProperty("java.io.tmpdir", "/tmp"))
-            val downloadDir = File(parentDir, "BetterTube")
-            if (downloadDir.exists()) {
-                downloadDir.listFiles()?.forEach { file ->
-                    if (file.name.startsWith(task.title)) {
-                        file.delete()
+            task.outputFilePath?.let { outPath ->
+                val base = File(outPath).nameWithoutExtension
+                val parentDir = context?.getExternalFilesDir(null) ?: File(System.getProperty("java.io.tmpdir", "/tmp"))
+                val downloadDir = File(parentDir, "BetterTube")
+                if (downloadDir.exists()) {
+                    downloadDir.listFiles()?.forEach { f ->
+                        if (f.name == base + ".part" ||
+                            f.name == base + ".ytdl" ||
+                            f.name == base + ".aria2") {
+                            f.delete()
+                        }
                     }
                 }
             }
         } catch (e: Exception) {
-                        Log.w("DownloadRepository", "Best-effort cleanup failed", e)
+            Log.w("DownloadRepository", "Best-effort cleanup failed", e)
         }
     }
 
