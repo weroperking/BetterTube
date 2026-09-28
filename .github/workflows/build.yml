@@ -66,10 +66,34 @@ jobs:
           GRADLE_OPTS: ""
         run: bash ./gradlew assembleRelease --no-daemon --stacktrace --warning-mode all
 
-      - name: Upload APK
+      - name: Upload All APK Variants
         uses: actions/upload-artifact@v5
         with:
-          name: BetterTube-Universal-APK
-          path: app/build/outputs/apk/release/app-release.apk
+          name: BetterTube-APKs
+          path: |
+            app/build/outputs/apk/release/app-arm64-v8a-release.apk
+            app/build/outputs/apk/release/app-armeabi-v7a-release.apk
+            app/build/outputs/apk/release/app-universal-release.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: BetterTube v${{ github.run_number }}
+          body: |
+            Automated build from commit ${{ github.sha }}.
+
+            **Recommended download for most phones:** `app-arm64-v8a-release.apk` (~30 MB)
+
+            Other variants:
+            - `app-armeabi-v7a-release.apk` — older 32-bit phones
+            - `app-universal-release.apk` — emulators or unusual devices (~118 MB)
+          files: |
+            app/build/outputs/apk/release/app-arm64-v8a-release.apk
+            app/build/outputs/apk/release/app-armeabi-v7a-release.apk
+            app/build/outputs/apk/release/app-universal-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
