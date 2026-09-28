@@ -8,6 +8,7 @@ import androidx.security.crypto.MasterKey
 import com.bettertube.app.BuildConfig
 import com.bettertube.app.data.aria2.rpc.Aria2RpcClient
 import com.bettertube.app.data.aria2.rpc.Aria2Version
+import dagger.Lazy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -25,8 +26,10 @@ import javax.inject.Singleton
 class Aria2ProcessManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val binaryProvider: Aria2BinaryProvider,
-    private val rpcClient: Aria2RpcClient
+    private val rpcClientLazy: Lazy<Aria2RpcClient>
 ) {
+    private val rpcClient: Aria2RpcClient
+        get() = rpcClientLazy.get()
     companion object {
         private const val TAG = "Aria2ProcessManager"
         const val RPC_PORT = 6800
