@@ -55,7 +55,14 @@ class Aria2RepositoryImpl @Inject constructor(
 
     private val _proxyConfig = MutableStateFlow(loadProxyConfig())
     private val _globalSpeedLimit = MutableStateFlow(loadGlobalSpeedLimit())
+    private val _maxPeers = MutableStateFlow(loadMaxPeers())
+    private val _seedTime = MutableStateFlow(loadSeedTime())
+    private val _customHeaders = MutableStateFlow(loadCustomHeaders())
     private val daemonReady: Deferred<Boolean>
+
+    override val maxPeers: StateFlow<Int> = _maxPeers.asStateFlow()
+    override val seedTime: StateFlow<Int> = _seedTime.asStateFlow()
+    override val customHeaders: StateFlow<Map<String, String>> = _customHeaders.asStateFlow()
 
     init {
         daemonReady = scope.async {
@@ -223,6 +230,7 @@ class Aria2RepositoryImpl @Inject constructor(
         rpcClient.changeGlobalOption(mapOf("header" to headerList))
 
         persistHeaders(headers)
+        _customHeaders.value = headers
         return Result.success(Unit)
     }
 
@@ -262,12 +270,14 @@ class Aria2RepositoryImpl @Inject constructor(
     override suspend fun setMaxPeers(peers: Int): Result<Unit> {
         rpcClient.changeGlobalOption(mapOf("bt-max-peers" to peers.toString()))
         persistSetting("bt_max_peers", peers)
+        _maxPeers.value = peers
         return Result.success(Unit)
     }
 
     override suspend fun setSeedTime(minutes: Int): Result<Unit> {
         rpcClient.changeGlobalOption(mapOf("seed-time" to minutes.toString()))
         persistSetting("seed_time", minutes)
+        _seedTime.value = minutes
         return Result.success(Unit)
     }
 
@@ -373,6 +383,45 @@ class Aria2RepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load global speed limit", e)
             null
+        }
+    }
+
+    private fun loadMaxPeers(): Int {
+        return try {
+            val root = loadSettingsJson()
+            if (root.has("bt_max_peers")) root.getInt("bt_max_peers") else 128
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load max peers", e)
+            128
+        }
+    }
+
+    private fun loadSeedTime(): Int {
+        return try {
+            val root = loadSettingsJson()
+            if (root.has("seed_time")) root.getInt("seed_time") else 0
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load seed time", e)
+            0
+        }
+    }
+
+    private fun loadCustomHeaders(): Map<String, String> {
+        return try {
+            val root = loadSettingsJson()
+            if (root.has(KEY_HEADERS)) {
+                val obj = root.getJSONObject(KEY_HEADERS)
+                val map = mutableMapOf<String, String>()
+                for (key in obj.keys()) {
+                    map[key] = obj.getString(key)
+                }
+                map
+            } else {
+                emptyMap()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load custom headers", e)
+            emptyMap()
         }
     }
 

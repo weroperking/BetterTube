@@ -577,10 +577,14 @@ class DownloadRepositoryImpl(
     private fun persistSettings() {
         try {
             val file = getStorageFile("settings.json") ?: return
-            val obj = JSONObject().apply {
-                _globalSpeedLimit.value?.let { put("globalSpeedLimit", it) }
-                put("wifiOnly", _wifiOnly.value)
-            }
+            val obj = if (file.exists()) {
+                runCatching { JSONObject(file.readText()) }.getOrElse { JSONObject() }
+            } else JSONObject()
+
+            _globalSpeedLimit.value?.let { obj.put("globalSpeedLimit", it) }
+                ?: obj.remove("globalSpeedLimit")
+            obj.put("wifiOnly", _wifiOnly.value)
+
             atomicWrite(file, obj.toString())
         } catch (e: Exception) {
                         Log.w("DownloadRepository", "Recoverable error", e)
