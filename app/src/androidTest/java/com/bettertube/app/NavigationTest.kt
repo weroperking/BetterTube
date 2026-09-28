@@ -20,7 +20,7 @@ class NavigationTest {
     fun bottomNavigation_displaysAllItems_andNavigatesToDownloads() {
         composeTestRule.setContent {
             BetterTubeTheme {
-                MainAppScreen()
+                MainAppScreen(isOnboardingComplete = true)
             }
         }
 

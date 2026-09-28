@@ -99,12 +99,15 @@ class MainActivity : FragmentActivity() {
             Screen.Onboarding.route
         }
 
+        val isOnboardingComplete = onboardingPreferences.hasCompleted()
+
         enableEdgeToEdge()
         setContent {
             BetterTubeTheme {
                 MainAppScreen(
                     startDestination = startDest,
                     pendingSharedUrl = pendingSharedUrl.value,
+                    isOnboardingComplete = isOnboardingComplete,
                     onSharedUrlConsumed = {
                         pendingSharedUrl.value = null
                     },
@@ -151,8 +154,10 @@ class MainActivity : FragmentActivity() {
 
 @Composable
 fun MainAppScreen(
+    navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Home.route,
     pendingSharedUrl: String? = null,
+    isOnboardingComplete: Boolean,
     onSharedUrlConsumed: () -> Unit = {},
     pendingDestination: String? = null,
     onDestinationConsumed: () -> Unit = {},
@@ -297,7 +302,7 @@ fun MainAppScreen(
             modifier = Modifier.padding(innerPadding),
             startDestination = startDestination,
             pendingSharedUrl = pendingSharedUrl,
-            isOnboardingComplete = onboardingPreferences.hasCompleted(),
+            isOnboardingComplete = isOnboardingComplete,
             onSharedUrlConsumed = onSharedUrlConsumed,
             onPlatformClicked = { platform ->
                 if (platform.name.equals("More", ignoreCase = true) || platform.urlScheme.isBlank()) {
