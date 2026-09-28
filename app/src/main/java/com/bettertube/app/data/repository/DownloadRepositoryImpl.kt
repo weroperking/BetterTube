@@ -51,16 +51,19 @@ class DownloadRepositoryImpl(
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val MAX_CONCURRENT_DOWNLOADS = 3
     private val dispatcherJob = repositoryScope.launch {
-        _tasks.map { it.values.filter { t -> t.status == DownloadStatus.WAITING } }
-            .distinctUntilChanged()
-            .collect { waiting ->
-                val active = _tasks.value.values.count { it.status == DownloadStatus.DOWNLOADING }
-                if (active < MAX_CONCURRENT_DOWNLOADS) {
-                    waiting.take(MAX_CONCURRENT_DOWNLOADS - active).forEach { task ->
-                        launchDownload(task)
-                    }
+        _tasks.map { tasks ->
+            val waiting = tasks.values.filter { it.status == DownloadStatus.WAITING }
+                .sortedBy { it.createdAtMillis }
+            val active = tasks.values.count { it.status == DownloadStatus.DOWNLOADING }
+            waiting to active
+        }.distinctUntilChanged()
+        .collect { (waiting, active) ->
+            if (active < MAX_CONCURRENT_DOWNLOADS) {
+                waiting.take(MAX_CONCURRENT_DOWNLOADS - active).forEach { task ->
+                    launchDownload(task)
                 }
             }
+        }
     }
 
     private fun launchDownload(task: DownloadTask) {
