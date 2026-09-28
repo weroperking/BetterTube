@@ -290,17 +290,28 @@ open class YtDlpEngine @Inject constructor(
             }
 
             var finalPath: String? = null
+            var lastSpeed: Long = 0L
+            var lastTotal: Long = 0L
             YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, line ->
                 val trimmed = line.trim()
                 if (trimmed.isNotEmpty() && trimmed.startsWith("/")) {
                     finalPath = trimmed
                 }
+                val speedRegex = Regex("""at\s+([\d.]+)(K|M|G)iB/s""")
+                val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
+                val speedMatch = speedRegex.find(trimmed)
+                val sizeMatch = sizeRegex.find(trimmed)
+                val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastSpeed
+                val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastTotal
+                lastSpeed = speedBytes
+                lastTotal = totalBytes
                 val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
+                val downloadedBytes = (normalizedPercent * totalBytes).toLong()
                 onProgress(
                     normalizedPercent,
-                    0L,
-                    0L,
-                    0L,
+                    downloadedBytes,
+                    totalBytes,
+                    speedBytes,
                     etaInSeconds
                 )
             }
@@ -335,6 +346,16 @@ open class YtDlpEngine @Inject constructor(
             Result.success(Unit)
         } catch (e: Throwable) {
             Result.failure(EngineException.Cancelled("Cancel not supported by engine version", e))
+        }
+    }
+
+    private fun parseUnit(value: String, unit: String): Long {
+        val base = value.toDoubleOrNull() ?: return 0L
+        return when (unit) {
+            "K" -> (base * 1024).toLong()
+            "M" -> (base * 1024 * 1024).toLong()
+            "G" -> (base * 1024 * 1024 * 1024).toLong()
+            else -> base.toLong()
         }
     }
 }
