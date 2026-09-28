@@ -28,7 +28,7 @@ fun BetterTubeNavGraph(
     modifier: Modifier = Modifier,
     startDestination: String = Screen.Home.route,
     pendingSharedUrl: String? = null,
-    isOnboardingComplete: Boolean = false,
+    isOnboardingComplete: Boolean,
     onSharedUrlConsumed: () -> Unit = {},
     onPlatformClicked: (Platform) -> Unit = {},
     onSearchBarClicked: () -> Unit = {}
