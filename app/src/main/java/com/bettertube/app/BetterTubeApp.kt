@@ -35,9 +35,13 @@ class BetterTubeApp : Application(), Configuration.Provider {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /**
+     * Installs crash logging, stores the application instance, and launches media engine
+     * initialization on the IO dispatcher. Marks the engines ready only if both initialize
+     * successfully; otherwise, logs the failure and leaves them unavailable.
+     */
     override fun onCreate() {
         super.onCreate()
-        // Initialize the media extraction engines and crash reporting on the IO dispatcher.
         CrashLogger.install(this)
         instance = this
         applicationScope.launch {
