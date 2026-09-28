@@ -198,7 +198,7 @@ open class YtDlpEngine @Inject constructor(
         processId: String,
         speedLimitBytesPerSecond: Long?,
         onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-    ): Result<String> {
+    ): Result<DownloadResult> {
         return startDownload(
             url = url,
             formatId = formatId,

@@ -89,12 +89,14 @@ class VaultRepositoryImpl @Inject constructor(
         return Result.success(Unit)
     }
 
-    override suspend fun lock() = vaultOperationMutex.withLock {
-        _vaultState.value = if (pinManager.hasPin()) VaultState.LOCKED else VaultState.UNINITIALIZED
-        try {
-            tempDir.listFiles()?.forEach { it.delete() }
-        } catch (e: Exception) {
-            android.util.Log.e("VaultRepository", "Failed to clear temp files", e)
+    override suspend fun lock() {
+        vaultOperationMutex.withLock {
+            _vaultState.value = if (pinManager.hasPin()) VaultState.LOCKED else VaultState.UNINITIALIZED
+            try {
+                tempDir.listFiles()?.forEach { it.delete() }
+            } catch (e: Exception) {
+                android.util.Log.e("VaultRepository", "Failed to clear temp files", e)
+            }
         }
     }
 
