@@ -1,30 +1,35 @@
 package com.bettertube.app.data.aria2
 
 import android.content.Context
+import android.util.Base64
 import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.bettertube.app.BuildConfig
+import com.bettertube.app.data.aria2.rpc.Aria2RpcClient
+import com.bettertube.app.data.aria2.rpc.Aria2Version
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.TimeUnit
+import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class Aria2ProcessManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val binaryProvider: Aria2BinaryProvider
+    private val binaryProvider: Aria2BinaryProvider,
+    private val rpcClient: Aria2RpcClient
 ) {
     companion object {
         private const val TAG = "Aria2ProcessManager"
         const val RPC_PORT = 6800
-        val RPC_SECRET = "bettertube_" + BuildConfig.APPLICATION_ID.hashCode().toString(16)
     }
 
     private val sessionFile = File(context.filesDir, "aria2.session")
@@ -38,7 +43,7 @@ class Aria2ProcessManager @Inject constructor(
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
 
-    fun getRpcSecret(): String = RPC_SECRET
+    fun getRpcSecret(): String = getOrCreateRpcSecret()
     fun getRpcPort(): Int = currentPort
 
     fun markAsRunning(port: Int) {
@@ -46,8 +51,46 @@ class Aria2ProcessManager @Inject constructor(
         _isRunning.value = true
     }
 
+    init {
+        loadPersistedPort()
+    }
+
+    private fun loadPersistedPort() {
+        try {
+            if (settingsFile.exists()) {
+                val json = JSONObject(settingsFile.readText())
+                if (json.has("aria2_rpc_port")) {
+                    currentPort = json.getInt("aria2_rpc_port")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load persisted aria2 port", e)
+        }
+    }
+
+    private fun getOrCreateRpcSecret(): String {
+        val prefs = EncryptedSharedPreferences.create(
+            context,
+            "bettertube_aria2_secret",
+            MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        prefs.getString("rpc_secret", null)?.let { return it }
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        val secret = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        prefs.edit().putString("rpc_secret", secret).apply()
+        return secret
+    }
+
     suspend fun start(): Result<Unit> = withContext(Dispatchers.IO) {
         if (process?.isAlive == true) {
+            return@withContext Result.success(Unit)
+        }
+
+        if (rpcClient.getVersionOnPort(currentPort) != null) {
+            markAsRunning(currentPort)
             return@withContext Result.success(Unit)
         }
 
@@ -82,7 +125,7 @@ class Aria2ProcessManager @Inject constructor(
                 "--enable-rpc=true",
                 "--rpc-listen-all=false",
                 "--rpc-listen-port=$port",
-                "--rpc-secret=$RPC_SECRET",
+                "--rpc-secret=${getOrCreateRpcSecret()}",
                 "--rpc-allow-origin-all=false",
                 "--continue=true",
                 "--max-concurrent-downloads=5",
@@ -156,6 +199,16 @@ class Aria2ProcessManager @Inject constructor(
                 p.destroyForcibly()
             }
             process = null
+        } else if (_isRunning.value) {
+            rpcClient.shutdown()
+            var attempts = 0
+            while (rpcClient.getVersion() != null && attempts < 10) {
+                delay(200)
+                attempts++
+            }
+            if (rpcClient.getVersion() != null) {
+                return@withContext Result.failure(IllegalStateException("aria2 daemon did not stop within timeout"))
+            }
         }
         _isRunning.value = false
         Result.success(Unit)
