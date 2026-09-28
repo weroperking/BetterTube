@@ -89,7 +89,7 @@ class VaultRepositoryImpl @Inject constructor(
         return Result.success(Unit)
     }
 
-    override fun lock() = vaultOperationMutex.withLock {
+    override suspend fun lock() = vaultOperationMutex.withLock {
         _vaultState.value = if (pinManager.hasPin()) VaultState.LOCKED else VaultState.UNINITIALIZED
         try {
             tempDir.listFiles()?.forEach { it.delete() }
@@ -120,7 +120,7 @@ class VaultRepositoryImpl @Inject constructor(
         val encryptedDestination = File(vaultDir, encryptedFileName)
         val originalSize = sourceFile.length()
 
-        val encryptResult = vaultCipher.encryptFile(sourceFile, encryptedDestination)
+        val encryptResult = vaultCipher.encryptFile(sourceFile, encryptedDestination, deleteSourceAfter = false)
         if (encryptResult.isFailure) {
             return Result.failure(encryptResult.exceptionOrNull() ?: Exception("Encryption failed"))
         }
