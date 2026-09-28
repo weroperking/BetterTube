@@ -21,7 +21,7 @@ open class VaultCipher @Inject constructor(
             .build()
     }
 
-    open fun encryptFile(source: File, destination: File): Result<Unit> {
+    open fun encryptFile(source: File, destination: File, deleteSourceAfter: Boolean = false): Result<Unit> {
         return try {
             if (!source.exists()) {
                 return Result.failure(IllegalArgumentException("Source file does not exist: ${source.absolutePath}"))
@@ -51,9 +51,13 @@ open class VaultCipher @Inject constructor(
                 }
             }
 
-            // Verify encrypted file exists and has content before deleting source (Edge Case 7)
             if (destination.exists() && destination.length() > 0) {
-                source.delete()
+                if (deleteSourceAfter) {
+                    if (!source.delete()) {
+                        destination.delete()
+                        return Result.failure(IOException("Failed to delete source file after encryption"))
+                    }
+                }
                 Result.success(Unit)
             } else {
                 destination.delete()
@@ -114,14 +118,15 @@ open class VaultCipher @Inject constructor(
 
             val length = file.length()
             if (length > 0) {
-                RandomAccessFile(file, "rws").use { raf ->
-                    val buffer = ByteArray(CHUNK_SIZE.coerceAtMost(length.toInt().coerceAtLeast(1)))
+                RandomAccessFile(file, "rw").use { raf ->
+                    val buffer = ByteArray(minOf(CHUNK_SIZE.toLong(), length).toInt())
                     var remaining = length
                     while (remaining > 0) {
                         val toWrite = buffer.size.toLong().coerceAtMost(remaining).toInt()
                         raf.write(buffer, 0, toWrite)
                         remaining -= toWrite
                     }
+                    raf.fd.sync()
                 }
             }
             file.delete()

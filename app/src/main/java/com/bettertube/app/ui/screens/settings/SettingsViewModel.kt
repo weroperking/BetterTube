@@ -60,6 +60,15 @@ class SettingsViewModel @Inject constructor(
 
     init {
         loadVersionInfo()
+        viewModelScope.launch {
+            aria2Repository.maxPeers.collect { _maxPeers.value = it }
+        }
+        viewModelScope.launch {
+            aria2Repository.seedTime.collect { _seedTime.value = it }
+        }
+        viewModelScope.launch {
+            aria2Repository.customHeaders.collect { _customHeaders.value = it }
+        }
     }
 
     fun loadVersionInfo() {

@@ -14,8 +14,10 @@ import com.bettertube.app.domain.model.ScheduleConfig
 import com.bettertube.app.domain.repository.Aria2Repository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -53,23 +55,31 @@ class Aria2RepositoryImpl @Inject constructor(
 
     private val _proxyConfig = MutableStateFlow(loadProxyConfig())
     private val _globalSpeedLimit = MutableStateFlow(loadGlobalSpeedLimit())
+    private val _maxPeers = MutableStateFlow(loadMaxPeers())
+    private val _seedTime = MutableStateFlow(loadSeedTime())
+    private val _customHeaders = MutableStateFlow(loadCustomHeaders())
+    private val daemonReady: Deferred<Boolean>
+
+    override val maxPeers: StateFlow<Int> = _maxPeers.asStateFlow()
+    override val seedTime: StateFlow<Int> = _seedTime.asStateFlow()
+    override val customHeaders: StateFlow<Map<String, String>> = _customHeaders.asStateFlow()
 
     init {
-        scope.launch {
+        daemonReady = scope.async {
             try {
-                // Edge Case 3: Check if daemon is already running (orphan process)
-                val version = rpcClient.getVersion()
-                if (version != null) {
-                    Log.i(TAG, "Reusing existing aria2 daemon: ${version.version}")
-                    processManager.markAsRunning(processManager.getRpcPort())
-                } else {
-                    val startRes = processManager.start()
-                    if (startRes.isFailure) {
-                        Log.w(TAG, "aria2 daemon failed to start on init: ${startRes.exceptionOrNull()?.message}")
+                val alreadyRunning = rpcClient.getVersion() != null
+                if (!alreadyRunning) {
+                    processManager.start().getOrThrow()
+                    var attempts = 0
+                    while (rpcClient.getVersion() == null && attempts < 20) {
+                        delay(500)
+                        attempts++
                     }
                 }
+                rpcClient.getVersion() != null
             } catch (e: Exception) {
-                Log.w(TAG, "Error initializing aria2 daemon", e)
+                Log.e(TAG, "Daemon startup failed", e)
+                false
             }
         }
     }
@@ -87,6 +97,9 @@ class Aria2RepositoryImpl @Inject constructor(
     override suspend fun stopDaemon(): Result<Unit> = processManager.stop()
 
     override suspend fun addMagnet(magnetUri: String, saveDir: String?): Result<String> {
+        if (!daemonReady.await()) {
+            return Result.failure(IllegalStateException("aria2 daemon not ready"))
+        }
         val options = mapOf(
             "dir" to (saveDir ?: defaultDir()),
             "seed-time" to "0",
@@ -101,6 +114,9 @@ class Aria2RepositoryImpl @Inject constructor(
     }
 
     override suspend fun addTorrentFile(torrentBytes: ByteArray, saveDir: String?): Result<String> {
+        if (!daemonReady.await()) {
+            return Result.failure(IllegalStateException("aria2 daemon not ready"))
+        }
         val base64 = Base64.encodeToString(torrentBytes, Base64.NO_WRAP)
         val options = mapOf(
             "dir" to (saveDir ?: defaultDir()),
@@ -115,6 +131,9 @@ class Aria2RepositoryImpl @Inject constructor(
     }
 
     override suspend fun addMetalinkFile(metalinkBytes: ByteArray): Result<List<String>> {
+        if (!daemonReady.await()) {
+            return Result.failure(IllegalStateException("aria2 daemon not ready"))
+        }
         val base64 = Base64.encodeToString(metalinkBytes, Base64.NO_WRAP)
         val options = mapOf("dir" to defaultDir())
         val gids = rpcClient.addMetalink(base64, options)
@@ -126,6 +145,9 @@ class Aria2RepositoryImpl @Inject constructor(
     }
 
     override suspend fun addHttpDownload(url: String, saveDir: String?): Result<String> {
+        if (!daemonReady.await()) {
+            return Result.failure(IllegalStateException("aria2 daemon not ready"))
+        }
         val options = mapOf("dir" to (saveDir ?: defaultDir()))
         val gid = rpcClient.addUri(url, options)
         return if (gid != null) {
@@ -208,6 +230,7 @@ class Aria2RepositoryImpl @Inject constructor(
         rpcClient.changeGlobalOption(mapOf("header" to headerList))
 
         persistHeaders(headers)
+        _customHeaders.value = headers
         return Result.success(Unit)
     }
 
@@ -247,12 +270,14 @@ class Aria2RepositoryImpl @Inject constructor(
     override suspend fun setMaxPeers(peers: Int): Result<Unit> {
         rpcClient.changeGlobalOption(mapOf("bt-max-peers" to peers.toString()))
         persistSetting("bt_max_peers", peers)
+        _maxPeers.value = peers
         return Result.success(Unit)
     }
 
     override suspend fun setSeedTime(minutes: Int): Result<Unit> {
         rpcClient.changeGlobalOption(mapOf("seed-time" to minutes.toString()))
         persistSetting("seed_time", minutes)
+        _seedTime.value = minutes
         return Result.success(Unit)
     }
 
@@ -358,6 +383,45 @@ class Aria2RepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load global speed limit", e)
             null
+        }
+    }
+
+    private fun loadMaxPeers(): Int {
+        return try {
+            val root = loadSettingsJson()
+            if (root.has("bt_max_peers")) root.getInt("bt_max_peers") else 128
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load max peers", e)
+            128
+        }
+    }
+
+    private fun loadSeedTime(): Int {
+        return try {
+            val root = loadSettingsJson()
+            if (root.has("seed_time")) root.getInt("seed_time") else 0
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load seed time", e)
+            0
+        }
+    }
+
+    private fun loadCustomHeaders(): Map<String, String> {
+        return try {
+            val root = loadSettingsJson()
+            if (root.has(KEY_HEADERS)) {
+                val obj = root.getJSONObject(KEY_HEADERS)
+                val map = mutableMapOf<String, String>()
+                for (key in obj.keys()) {
+                    map[key] = obj.getString(key)
+                }
+                map
+            } else {
+                emptyMap()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load custom headers", e)
+            emptyMap()
         }
     }
 

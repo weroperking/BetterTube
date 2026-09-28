@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,6 +49,41 @@ class DownloadRepositoryImpl(
     private val _wifiOnly = MutableStateFlow<Boolean>(false)
     private val _queueOrder = MutableStateFlow<List<String>>(emptyList())
     private val activeJobs = ConcurrentHashMap<String, Job>()
+    private val MAX_CONCURRENT_DOWNLOADS = 3
+    private val dispatcherJob = repositoryScope.launch {
+        _tasks.map { tasks ->
+            val waiting = tasks.values.filter { it.status == DownloadStatus.WAITING }
+                .sortedBy { it.createdAtMillis }
+            val active = tasks.values.count { it.status == DownloadStatus.DOWNLOADING }
+            waiting to active
+        }.distinctUntilChanged()
+        .collect { (waiting, active) ->
+            if (active < MAX_CONCURRENT_DOWNLOADS) {
+                waiting.take(MAX_CONCURRENT_DOWNLOADS - active).forEach { task ->
+                    launchDownload(task)
+                }
+            }
+        }
+    }
+
+    private fun launchDownload(task: DownloadTask) {
+        val current = _tasks.value[task.id] ?: return
+        if (current.status != DownloadStatus.WAITING) return
+        val job = repositoryScope.launch {
+            executeDownloadTask(task)
+        }
+        activeJobs[task.id] = job
+    }
+
+    private fun enqueueForDownload(task: DownloadTask) {
+        _tasks.update { currentMap ->
+            val current = currentMap[task.id] ?: return@update currentMap
+            currentMap + (task.id to current.copy(errorMessage = null))
+        }
+        _queueOrder.update { if (!it.contains(task.id)) it + task.id else it }
+        persistTasks()
+        persistQueue()
+    }
 
     private var repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -71,6 +108,16 @@ class DownloadRepositoryImpl(
         loadPersistedSettings()
         loadPersistedQueue()
         loadPersistedTasks()
+
+        repositoryScope.launch {
+            networkMonitor.observeWifiConnectivity().collect { onWifi ->
+                if (onWifi && _wifiOnly.value) {
+                    _tasks.value.values
+                        .filter { it.status == DownloadStatus.WAITING && it.errorMessage == "Waiting for WiFi" }
+                        .forEach { task -> enqueueForDownload(task) }
+                }
+            }
+        }
     }
 
     override suspend fun fetchMetadata(url: String): Result<MediaMetadata> {
@@ -124,6 +171,7 @@ class DownloadRepositoryImpl(
                 speedBytesPerSecond = 0L,
                 etaSeconds = 0L,
                 outputFilePath = null,
+                partialFilePath = null,
                 errorMessage = null,
                 createdAtMillis = baseTime + entry.index,
                 mediaType = mediaType,
@@ -141,14 +189,6 @@ class DownloadRepositoryImpl(
         _queueOrder.update { it + createdTasks.map { t -> t.id } }
         persistTasks()
         persistQueue()
-
-        repositoryScope.launch {
-            for (task in createdTasks) {
-                val currentTask = _tasks.value[task.id] ?: continue
-                if (currentTask.status == DownloadStatus.CANCELLED) continue
-                executeDownloadTask(currentTask)
-            }
-        }
 
         return Result.success(createdTasks.map { it.id })
     }
@@ -232,12 +272,8 @@ class DownloadRepositoryImpl(
             }
 
             return downloadResult.fold(
-                onSuccess = {
-                    val outputDir = runCatching { context?.getExternalFilesDir(null as String?) }.getOrNull()
-                    val ext = if (task.mediaType == MediaType.AUDIO) "mp3" else "mp4"
-                    val outputFilePath = if (outputDir != null) {
-                        "${outputDir.absolutePath}/BetterTube/${task.title}.$ext"
-                    } else null
+                onSuccess = { result ->
+                    val outputFilePath = result.finalPath
 
                     _tasks.update { currentMap ->
                         val current = currentMap[task.id] ?: task
@@ -271,10 +307,11 @@ class DownloadRepositoryImpl(
     }
 
     override suspend fun startDownload(task: DownloadTask): Result<String> {
-        val job = repositoryScope.launch {
-            executeDownloadTask(task)
-        }
-        activeJobs[task.id] = job
+        val waitingTask = task.copy(status = DownloadStatus.WAITING)
+        _tasks.update { it + (task.id to waitingTask) }
+        _queueOrder.update { if (!it.contains(task.id)) it + task.id else it }
+        persistTasks()
+        persistQueue()
         return Result.success(task.id)
     }
 
@@ -378,12 +415,8 @@ class DownloadRepositoryImpl(
                 }
 
                 downloadResult.fold(
-                    onSuccess = {
-                        val outputDir = runCatching { context?.getExternalFilesDir(null as String?) }.getOrNull()
-                        val ext = if (task.mediaType == MediaType.AUDIO) "mp3" else "mp4"
-                        val outputFilePath = if (outputDir != null) {
-                            "${outputDir.absolutePath}/BetterTube/${task.title}.$ext"
-                        } else null
+                    onSuccess = { result ->
+                        val outputFilePath = result.finalPath
 
                         _tasks.update { currentMap ->
                             val current = currentMap[id] ?: updatedTask
@@ -459,24 +492,26 @@ class DownloadRepositoryImpl(
 
     private fun deletePartialFiles(task: DownloadTask) {
         try {
-            task.outputFilePath?.let { path ->
-                val file = File(path)
-                if (file.exists()) file.delete()
-                val aria2File = File("$path.aria2")
-                if (aria2File.exists()) aria2File.delete()
+            task.partialFilePath?.let { path ->
+                File(path).takeIf { it.exists() }?.delete()
             }
 
-            val parentDir = context?.getExternalFilesDir(null) ?: File(System.getProperty("java.io.tmpdir", "/tmp"))
-            val downloadDir = File(parentDir, "BetterTube")
-            if (downloadDir.exists()) {
-                downloadDir.listFiles()?.forEach { file ->
-                    if (file.name.startsWith(task.title)) {
-                        file.delete()
+            task.outputFilePath?.let { outPath ->
+                val base = File(outPath).nameWithoutExtension
+                val parentDir = context?.getExternalFilesDir(null) ?: File(System.getProperty("java.io.tmpdir", "/tmp"))
+                val downloadDir = File(parentDir, "BetterTube")
+                if (downloadDir.exists()) {
+                    downloadDir.listFiles()?.forEach { f ->
+                        if (f.name == base + ".part" ||
+                            f.name == base + ".ytdl" ||
+                            f.name == base + ".aria2") {
+                            f.delete()
+                        }
                     }
                 }
             }
         } catch (e: Exception) {
-                        Log.w("DownloadRepository", "Best-effort cleanup failed", e)
+            Log.w("DownloadRepository", "Best-effort cleanup failed", e)
         }
     }
 
@@ -583,10 +618,14 @@ class DownloadRepositoryImpl(
     private fun persistSettings() {
         try {
             val file = getStorageFile("settings.json") ?: return
-            val obj = JSONObject().apply {
-                _globalSpeedLimit.value?.let { put("globalSpeedLimit", it) }
-                put("wifiOnly", _wifiOnly.value)
-            }
+            val obj = if (file.exists()) {
+                runCatching { JSONObject(file.readText()) }.getOrElse { JSONObject() }
+            } else JSONObject()
+
+            _globalSpeedLimit.value?.let { obj.put("globalSpeedLimit", it) }
+                ?: obj.remove("globalSpeedLimit")
+            obj.put("wifiOnly", _wifiOnly.value)
+
             atomicWrite(file, obj.toString())
         } catch (e: Exception) {
                         Log.w("DownloadRepository", "Recoverable error", e)

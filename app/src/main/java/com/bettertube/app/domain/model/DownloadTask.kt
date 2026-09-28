@@ -13,6 +13,7 @@ data class DownloadTask(
     val speedBytesPerSecond: Long,
     val etaSeconds: Long,
     val outputFilePath: String?,
+    val partialFilePath: String? = null,
     val errorMessage: String?,
     val createdAtMillis: Long,
     val mediaType: MediaType = MediaType.OTHER,

@@ -10,7 +10,7 @@ interface VaultRepository {
     suspend fun initializeVault(pin: String): Result<Unit>
     suspend fun unlockWithPin(pin: String): Result<Unit>
     suspend fun unlockWithBiometric(): Result<Unit>
-    fun lock()
+    suspend fun lock()
     suspend fun moveToVault(taskId: String): Result<VaultItem>
     suspend fun removeFromVault(vaultItemId: String): Result<Unit>
     suspend fun deleteVaultItem(vaultItemId: String): Result<Unit>

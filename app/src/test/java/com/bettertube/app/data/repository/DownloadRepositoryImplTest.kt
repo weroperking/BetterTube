@@ -2,6 +2,7 @@ package com.bettertube.app.data.repository
 
 import com.bettertube.app.data.engine.EngineException
 import com.bettertube.app.data.engine.YtDlpEngine
+import com.bettertube.app.data.engine.DownloadResult
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
 import com.bettertube.app.domain.model.ExtractionPreset
@@ -63,7 +64,7 @@ class DownloadRepositoryImplTest {
             processId: String,
             speedLimitBytesPerSecond: Long?,
             onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-        ): Result<String> {
+        ): Result<DownloadResult> {
             return startDownload(
                 url = url,
                 formatId = formatId,
@@ -91,15 +92,14 @@ class DownloadRepositoryImplTest {
             embedSubtitles: Boolean,
             allowPlaylist: Boolean,
             onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-        ): Result<String> {
+        ): Result<DownloadResult> {
             if (shouldFail) {
                 return Result.failure(EngineException.DownloadFailed("Simulated download error"))
             }
-            // Report progress 3 times: 0.0, 0.5, 1.0
             onProgress(0.0f, 0L, 1000L, 500L, 2L)
             onProgress(0.5f, 500L, 1000L, 500L, 1L)
             onProgress(1.0f, 1000L, 1000L, 500L, 0L)
-            return Result.success(taskId)
+            return Result.success(DownloadResult("/tmp/BetterTube/${taskId}.mp4"))
         }
 
         override suspend fun cancelDownload(): Result<Unit> {

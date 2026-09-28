@@ -33,4 +33,7 @@ interface Aria2Repository {
     suspend fun getVersionInfo(): Pair<String, List<String>>?
     suspend fun setMaxPeers(peers: Int): Result<Unit>
     suspend fun setSeedTime(minutes: Int): Result<Unit>
+    val maxPeers: StateFlow<Int>
+    val seedTime: StateFlow<Int>
+    val customHeaders: StateFlow<Map<String, String>>
 }

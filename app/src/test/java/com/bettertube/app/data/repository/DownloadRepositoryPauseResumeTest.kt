@@ -1,6 +1,7 @@
 package com.bettertube.app.data.repository
 
 import com.bettertube.app.data.engine.YtDlpEngine
+import com.bettertube.app.data.engine.DownloadResult
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,7 +35,7 @@ class DownloadRepositoryPauseResumeTest {
             processId: String,
             speedLimitBytesPerSecond: Long?,
             onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-        ): Result<String> {
+        ): Result<DownloadResult> {
             startDownloadCalls.add(processId)
             kotlinx.coroutines.awaitCancellation()
         }
@@ -159,9 +160,12 @@ class DownloadRepositoryPauseResumeTest {
         val repository = DownloadRepositoryImpl(fakeEngine, null, testScope)
 
         val sampleFile = tempFolder.newFile("test_video.mp4")
-        val sampleAria2 = tempFolder.newFile("test_video.mp4.aria2")
+        val betterTubeDir = File(System.getProperty("java.io.tmpdir"), "BetterTube")
+        betterTubeDir.mkdirs()
+        val sidecarFile = File(betterTubeDir, "test_video.aria2")
+        sidecarFile.writeText("aria2-sidecar")
         assertTrue(sampleFile.exists())
-        assertTrue(sampleAria2.exists())
+        assertTrue(sidecarFile.exists())
 
         val task = DownloadTask(
             id = "task_4",
@@ -176,6 +180,7 @@ class DownloadRepositoryPauseResumeTest {
             speedBytesPerSecond = 100L,
             etaSeconds = 5L,
             outputFilePath = sampleFile.absolutePath,
+            partialFilePath = sampleFile.absolutePath,
             errorMessage = null,
             createdAtMillis = System.currentTimeMillis(),
             processId = "process_cancel_test"
@@ -188,6 +193,6 @@ class DownloadRepositoryPauseResumeTest {
         val finalTask = repository.getTask(task.id).first()
         assertEquals(null, finalTask)
         assertFalse(sampleFile.exists())
-        assertFalse(sampleAria2.exists())
+        assertFalse(sidecarFile.exists())
     }
 }

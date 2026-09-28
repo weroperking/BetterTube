@@ -59,8 +59,10 @@ import com.bettertube.app.ui.theme.BrandPrimary
 import com.bettertube.app.ui.theme.SurfaceDark
 import com.bettertube.app.ui.theme.TextSecondary
 import com.bettertube.app.R
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -128,7 +130,9 @@ class MainActivity : FragmentActivity() {
         if (backgroundedAtMillis > 0L) {
             val elapsed = SystemClock.elapsedRealtime() - backgroundedAtMillis
             if (elapsed > 60_000L && vaultRepository.getVaultState().value == VaultState.UNLOCKED) {
-                vaultRepository.lock()
+                lifecycleScope.launch {
+                    vaultRepository.lock()
+                }
             }
         }
     }
@@ -293,6 +297,7 @@ fun MainAppScreen(
             modifier = Modifier.padding(innerPadding),
             startDestination = startDestination,
             pendingSharedUrl = pendingSharedUrl,
+            isOnboardingComplete = onboardingPreferences.hasCompleted(),
             onSharedUrlConsumed = onSharedUrlConsumed,
             onPlatformClicked = { platform ->
                 if (platform.name.equals("More", ignoreCase = true) || platform.urlScheme.isBlank()) {

@@ -28,15 +28,34 @@ fun BetterTubeNavGraph(
     modifier: Modifier = Modifier,
     startDestination: String = Screen.Home.route,
     pendingSharedUrl: String? = null,
+    isOnboardingComplete: Boolean,
     onSharedUrlConsumed: () -> Unit = {},
     onPlatformClicked: (Platform) -> Unit = {},
     onSearchBarClicked: () -> Unit = {}
 ) {
     var activeSharedUrl by remember { mutableStateOf<String?>(null) }
+    var pendingUrlAfterOnboarding by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(pendingSharedUrl) {
+    LaunchedEffect(pendingSharedUrl, isOnboardingComplete) {
         if (!pendingSharedUrl.isNullOrBlank()) {
-            activeSharedUrl = pendingSharedUrl
+            if (isOnboardingComplete) {
+                activeSharedUrl = pendingSharedUrl
+                if (navController.currentDestination?.route != Screen.Home.route) {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+                onSharedUrlConsumed()
+            } else {
+                pendingUrlAfterOnboarding = pendingSharedUrl
+            }
+        }
+    }
+
+    LaunchedEffect(isOnboardingComplete) {
+        if (isOnboardingComplete && pendingUrlAfterOnboarding != null) {
+            activeSharedUrl = pendingUrlAfterOnboarding
             if (navController.currentDestination?.route != Screen.Home.route) {
                 navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.Home.route) { inclusive = false }
@@ -44,6 +63,7 @@ fun BetterTubeNavGraph(
                 }
             }
             onSharedUrlConsumed()
+            pendingUrlAfterOnboarding = null
         }
     }
 
@@ -59,6 +79,7 @@ fun BetterTubeNavGraph(
             HomeScreen(
                 navController = navController,
                 sharedUrl = activeSharedUrl,
+                onSharedUrlConsumed = { activeSharedUrl = null },
                 onPlatformClicked = onPlatformClicked,
                 onSearchBarClicked = onSearchBarClicked
             )

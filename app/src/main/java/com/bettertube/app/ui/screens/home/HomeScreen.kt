@@ -76,6 +76,7 @@ fun HomeScreen(
     innerPadding: PaddingValues = PaddingValues(0.dp),
     navController: NavController = rememberNavController(),
     sharedUrl: String? = null,
+    onSharedUrlConsumed: () -> Unit = {},
     onPlatformClicked: (Platform) -> Unit = {},
     onSearchBarClicked: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -105,6 +106,7 @@ fun HomeScreen(
     LaunchedEffect(sharedUrl) {
         if (!sharedUrl.isNullOrBlank()) {
             processUrl(sharedUrl)
+            onSharedUrlConsumed()
         }
     }
 
@@ -210,6 +212,7 @@ fun HomeScreen(
         QualityPickerDialog(
             metadata = metadata,
             onDismiss = {
+                viewModel.onQualityPickerDismissed()
                 viewModel.onSearchQueryChange("")
             },
             onDownload = { format ->

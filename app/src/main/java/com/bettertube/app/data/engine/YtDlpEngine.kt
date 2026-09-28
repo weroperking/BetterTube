@@ -18,6 +18,8 @@ import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 
+data class DownloadResult(val finalPath: String)
+
 open class YtDlpEngine @Inject constructor(
     @ApplicationContext private val context: Context? = null
 ) {
@@ -224,7 +226,7 @@ open class YtDlpEngine @Inject constructor(
         embedSubtitles: Boolean = false,
         allowPlaylist: Boolean = false,
         onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
-    ): Result<String> = withContext(Dispatchers.IO) {
+    ): Result<DownloadResult> = withContext(Dispatchers.IO) {
         try {
             val parentDir = context?.getExternalFilesDir(null) ?: File(System.getProperty("java.io.tmpdir", "/tmp"))
             val downloadDir = File(parentDir, "BetterTube")
@@ -252,7 +254,6 @@ open class YtDlpEngine @Inject constructor(
                 addOption("--downloader", "aria2c")
                 addOption("--downloader-args", aria2Args)
 
-                // Apply preset args
                 val presetArgs = preset.toYtDlpArgs()
                 var i = 0
                 while (i < presetArgs.size) {
@@ -284,20 +285,42 @@ open class YtDlpEngine @Inject constructor(
                 addOption("--no-overwrites")
                 addOption("--no-part")
                 addOption("-o", "${downloadDir.absolutePath}/%(title)s.%(ext)s")
+                addOption("--print", "after_move:filepath")
+                addOption("--no-simulate")
             }
 
-            YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, _ ->
+            var lastSpeed: Long = 0L
+            var lastTotal: Long = 0L
+            val response = YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, line ->
+                val trimmed = line.trim()
+                val speedRegex = Regex("""at\s+([\d.]+)(K|M|G)iB/s""")
+                val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
+                val speedMatch = speedRegex.find(trimmed)
+                val sizeMatch = sizeRegex.find(trimmed)
+                val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastSpeed
+                val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastTotal
+                lastSpeed = speedBytes
+                lastTotal = totalBytes
                 val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
+                val downloadedBytes = (normalizedPercent * totalBytes).toLong()
                 onProgress(
                     normalizedPercent,
-                    0L,
-                    0L,
-                    0L,
+                    downloadedBytes,
+                    totalBytes,
+                    speedBytes,
                     etaInSeconds
                 )
             }
 
-            Result.success(taskId)
+            val finalPath = response.out
+                .lineSequence()
+                .map { it.trim() }
+                .lastOrNull { it.startsWith("/") && File(it).exists() }
+
+            if (finalPath.isNullOrBlank()) {
+                return@withContext Result.failure(IllegalStateException("yt-dlp did not report an output path"))
+            }
+            return@withContext Result.success(DownloadResult(finalPath))
         } catch (e: Exception) {
             Result.failure(EngineException.DownloadFailed(e.message ?: "Download failed", e))
         }
@@ -323,6 +346,16 @@ open class YtDlpEngine @Inject constructor(
             Result.success(Unit)
         } catch (e: Throwable) {
             Result.failure(EngineException.Cancelled("Cancel not supported by engine version", e))
+        }
+    }
+
+    private fun parseUnit(value: String, unit: String): Long {
+        val base = value.toDoubleOrNull() ?: return 0L
+        return when (unit) {
+            "K" -> (base * 1024).toLong()
+            "M" -> (base * 1024 * 1024).toLong()
+            "G" -> (base * 1024 * 1024 * 1024).toLong()
+            else -> base.toLong()
         }
     }
 }
