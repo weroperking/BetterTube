@@ -1,8 +1,7 @@
 package com.bettertube.app.data.repository
 
-import android.os.SystemClock
-
 import android.content.Context
+import android.os.SystemClock
 import androidx.biometric.BiometricManager
 import com.bettertube.app.data.vault.VaultCipher
 import com.bettertube.app.data.vault.VaultPinManager
@@ -20,9 +19,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,6 +49,7 @@ class VaultRepositoryImpl @Inject constructor(
         if (pinManager.hasPin()) VaultState.LOCKED else VaultState.UNINITIALIZED
     )
     private val _vaultItems = MutableStateFlow<List<VaultItem>>(emptyList())
+    private val vaultOperationMutex = Mutex()
 
     init {
         loadMetadata()
@@ -86,9 +89,8 @@ class VaultRepositoryImpl @Inject constructor(
         return Result.success(Unit)
     }
 
-    override fun lock() {
+    override fun lock() = vaultOperationMutex.withLock {
         _vaultState.value = if (pinManager.hasPin()) VaultState.LOCKED else VaultState.UNINITIALIZED
-        // Clear all decrypted temp files in cacheDir/vault_temp/
         try {
             tempDir.listFiles()?.forEach { it.delete() }
         } catch (e: Exception) {
@@ -131,16 +133,28 @@ class VaultRepositoryImpl @Inject constructor(
             originalPath = task.outputFilePath,
             sizeBytes = originalSize,
             mediaType = task.mediaType,
-            addedAtMillis = SystemClock.elapsedRealtime()
+            addedAtMillis = System.currentTimeMillis()
         )
 
         _vaultItems.update { it + vaultItem }
-        persistMetadata()
+        val metadataResult = persistMetadata()
+        if (metadataResult.isFailure) {
+            encryptedDestination.delete()
+            _vaultItems.update { it.filterNot { item -> item.id == vaultItem.id } }
+            return Result.failure(metadataResult.exceptionOrNull() ?: Exception("Failed to persist metadata"))
+        }
+
+        if (!sourceFile.delete()) {
+            encryptedDestination.delete()
+            _vaultItems.update { it.filterNot { item -> item.id == vaultItem.id } }
+            persistMetadata()
+            return Result.failure(IOException("Failed to delete source file after encryption"))
+        }
 
         return Result.success(vaultItem)
     }
 
-    override suspend fun removeFromVault(vaultItemId: String): Result<Unit> {
+    override suspend fun removeFromVault(vaultItemId: String): Result<Unit> = vaultOperationMutex.withLock {
         if (_vaultState.value != VaultState.UNLOCKED) {
             return Result.failure(IllegalStateException("Vault is locked"))
         }
@@ -155,7 +169,6 @@ class VaultRepositoryImpl @Inject constructor(
             return Result.failure(IllegalStateException("Encrypted file missing"))
         }
 
-        // Edge Case 2: Determine target restore directory and unique file name
         val targetDir = item.originalPath?.let { File(it).parentFile }?.takeIf { it.exists() || it.mkdirs() }
             ?: File(context.getExternalFilesDir(null) ?: context.filesDir, "BetterTube").apply { mkdirs() }
 
@@ -171,14 +184,27 @@ class VaultRepositoryImpl @Inject constructor(
             }
         }
 
+        if (_vaultState.value != VaultState.UNLOCKED) {
+            return Result.failure(IllegalStateException("Vault is locked during restore"))
+        }
+
         val decryptResult = vaultCipher.decryptFile(encryptedFile, targetFile)
+
+        if (_vaultState.value != VaultState.UNLOCKED) {
+            targetFile.delete()
+            return Result.failure(IllegalStateException("Vault was locked during restore, decrypted file removed"))
+        }
+
         if (decryptResult.isFailure) {
             return Result.failure(decryptResult.exceptionOrNull() ?: Exception("Decryption failed"))
         }
 
         encryptedFile.delete()
         _vaultItems.update { it.filterNot { item -> item.id == vaultItemId } }
-        persistMetadata()
+        val metadataResult = persistMetadata()
+        if (metadataResult.isFailure) {
+            return Result.failure(metadataResult.exceptionOrNull() ?: Exception("Failed to persist metadata"))
+        }
 
         return Result.success(Unit)
     }
@@ -194,7 +220,10 @@ class VaultRepositoryImpl @Inject constructor(
         val encryptedFile = File(item.encryptedPath)
         vaultCipher.deleteSecurely(encryptedFile)
         _vaultItems.update { it.filterNot { it.id == vaultItemId } }
-        persistMetadata()
+        val metadataResult = persistMetadata()
+        if (metadataResult.isFailure) {
+            return Result.failure(metadataResult.exceptionOrNull() ?: Exception("Failed to persist metadata"))
+        }
 
         return Result.success(Unit)
     }
@@ -280,8 +309,8 @@ class VaultRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun persistMetadata() {
-        try {
+    private fun persistMetadata(): Result<Unit> {
+        return try {
             val array = JSONArray()
             _vaultItems.value.forEach { item ->
                 val obj = JSONObject().apply {
@@ -297,8 +326,10 @@ class VaultRepositoryImpl @Inject constructor(
                 array.put(obj)
             }
             atomicWrite(metadataFile, array.toString())
+            Result.success(Unit)
         } catch (e: Exception) {
-            android.util.Log.e("VaultRepository", "Failed to clear temp files", e)
+            android.util.Log.e("VaultRepository", "Failed to persist metadata", e)
+            Result.failure(e)
         }
     }
 

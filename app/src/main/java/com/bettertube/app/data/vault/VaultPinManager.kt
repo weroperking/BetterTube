@@ -11,6 +11,7 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.min
 
 @Singleton
 open class VaultPinManager @Inject constructor(
@@ -53,6 +54,15 @@ open class VaultPinManager @Inject constructor(
     }
 
     open fun verifyPin(pin: String): Boolean {
+        val failedAttempts = prefs.getInt(KEY_FAILED_ATTEMPTS, 0)
+        if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+            val lastFailureMs = prefs.getLong(KEY_LAST_FAILURE_TIME, 0)
+            val delayMs = min(MAX_DELAY_MS, (failedAttempts - 2) * BASE_DELAY_MS)
+            if (System.currentTimeMillis() - lastFailureMs < delayMs) {
+                return false
+            }
+        }
+
         val saltBase64 = prefs.getString(KEY_SALT, null) ?: return false
         val storedHashBase64 = prefs.getString(KEY_HASH, null) ?: return false
 
@@ -65,7 +75,19 @@ open class VaultPinManager @Inject constructor(
         val computedHash = hashPin(pin, salt)
         val computedHashBase64 = Base64.encodeToString(computedHash, Base64.NO_WRAP)
 
-        return storedHashBase64 == computedHashBase64
+        val isValid = storedHashBase64 == computedHashBase64
+        if (isValid) {
+            prefs.edit()
+                .remove(KEY_FAILED_ATTEMPTS)
+                .remove(KEY_LAST_FAILURE_TIME)
+                .apply()
+        } else {
+            prefs.edit()
+                .putInt(KEY_FAILED_ATTEMPTS, failedAttempts + 1)
+                .putLong(KEY_LAST_FAILURE_TIME, System.currentTimeMillis())
+                .apply()
+        }
+        return isValid
     }
 
     open fun clearPin() {
@@ -98,6 +120,11 @@ open class VaultPinManager @Inject constructor(
         private const val KEY_SALT = "pin_salt"
         private const val KEY_HASH = "pin_hash"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_FAILED_ATTEMPTS = "vault_failed_attempts"
+        private const val KEY_LAST_FAILURE_TIME = "vault_last_failure_ms"
+        private const val MAX_FAILED_ATTEMPTS = 3
+        private const val BASE_DELAY_MS = 5_000L
+        private const val MAX_DELAY_MS = 30_000L
 
         const val SALT_LENGTH_BYTES = 16
         const val ITERATION_COUNT = 100_000
