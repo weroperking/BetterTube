@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -50,6 +51,7 @@ class DownloadRepositoryImpl(
     private val _queueOrder = MutableStateFlow<List<String>>(emptyList())
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val MAX_CONCURRENT_DOWNLOADS = 3
+    private var repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val dispatcherJob = repositoryScope.launch {
         _tasks.map { tasks ->
             val waiting = tasks.values.filter { it.status == DownloadStatus.WAITING }
@@ -84,8 +86,6 @@ class DownloadRepositoryImpl(
         persistTasks()
         persistQueue()
     }
-
-    private var repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     constructor(
         engine: YtDlpEngine,
