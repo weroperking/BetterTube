@@ -289,14 +289,10 @@ open class YtDlpEngine @Inject constructor(
                 addOption("--no-simulate")
             }
 
-            var finalPath: String? = null
             var lastSpeed: Long = 0L
             var lastTotal: Long = 0L
-            YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, line ->
+            val response = YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, line ->
                 val trimmed = line.trim()
-                if (trimmed.isNotEmpty() && trimmed.startsWith("/")) {
-                    finalPath = trimmed
-                }
                 val speedRegex = Regex("""at\s+([\d.]+)(K|M|G)iB/s""")
                 val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
                 val speedMatch = speedRegex.find(trimmed)
@@ -316,11 +312,15 @@ open class YtDlpEngine @Inject constructor(
                 )
             }
 
-            val path = finalPath
-            if (path != null) {
-                return@withContext Result.success(DownloadResult(path))
+            val finalPath = response.out
+                .lineSequence()
+                .map { it.trim() }
+                .lastOrNull { it.startsWith("/") && File(it).exists() }
+
+            if (finalPath.isNullOrBlank()) {
+                return@withContext Result.failure(IllegalStateException("yt-dlp did not report an output path"))
             }
-            return@withContext Result.failure(IllegalStateException("Download completed but final path not captured"))
+            return@withContext Result.success(DownloadResult(finalPath))
         } catch (e: Exception) {
             Result.failure(EngineException.DownloadFailed(e.message ?: "Download failed", e))
         }
