@@ -4,6 +4,7 @@ import com.bettertube.app.data.engine.EngineException
 import com.bettertube.app.data.engine.YtDlpEngine
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
+import com.bettertube.app.domain.model.ExtractionPreset
 import com.bettertube.app.domain.model.MediaFormat
 import com.bettertube.app.domain.model.MediaMetadata
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -61,6 +62,34 @@ class DownloadRepositoryImplTest {
             taskId: String,
             processId: String,
             speedLimitBytesPerSecond: Long?,
+            onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
+        ): Result<String> {
+            return startDownload(
+                url = url,
+                formatId = formatId,
+                taskId = taskId,
+                processId = processId,
+                speedLimitBytesPerSecond = speedLimitBytesPerSecond,
+                preset = ExtractionPreset.VIDEO_ORIGINAL,
+                downloadSubtitles = false,
+                subtitleLanguages = emptyList(),
+                embedSubtitles = false,
+                allowPlaylist = false,
+                onProgress = onProgress
+            )
+        }
+
+        override suspend fun startDownload(
+            url: String,
+            formatId: String,
+            taskId: String,
+            processId: String,
+            speedLimitBytesPerSecond: Long?,
+            preset: ExtractionPreset,
+            downloadSubtitles: Boolean,
+            subtitleLanguages: List<String>,
+            embedSubtitles: Boolean,
+            allowPlaylist: Boolean,
             onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
         ): Result<String> {
             if (shouldFail) {

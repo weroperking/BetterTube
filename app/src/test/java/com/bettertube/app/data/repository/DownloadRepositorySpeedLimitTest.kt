@@ -3,6 +3,7 @@ package com.bettertube.app.data.repository
 import com.bettertube.app.data.engine.YtDlpEngine
 import com.bettertube.app.domain.model.DownloadStatus
 import com.bettertube.app.domain.model.DownloadTask
+import com.bettertube.app.domain.model.ExtractionPreset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -25,6 +26,23 @@ class DownloadRepositorySpeedLimitTest {
             taskId: String,
             processId: String,
             speedLimitBytesPerSecond: Long?,
+            onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
+        ): Result<String> {
+            startCalls.add(processId)
+            kotlinx.coroutines.awaitCancellation()
+        }
+
+        override suspend fun startDownload(
+            url: String,
+            formatId: String,
+            taskId: String,
+            processId: String,
+            speedLimitBytesPerSecond: Long?,
+            preset: ExtractionPreset,
+            downloadSubtitles: Boolean,
+            subtitleLanguages: List<String>,
+            embedSubtitles: Boolean,
+            allowPlaylist: Boolean,
             onProgress: (percent: Float, downloadedBytes: Long, totalBytes: Long, speed: Long, etaSeconds: Long) -> Unit
         ): Result<String> {
             startCalls.add(processId)

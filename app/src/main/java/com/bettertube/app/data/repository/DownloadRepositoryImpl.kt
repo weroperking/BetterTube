@@ -186,18 +186,12 @@ class DownloadRepositoryImpl(
             persistTasks()
 
             val effectiveLimit = task.speedLimitBytesPerSecond ?: _globalSpeedLimit.value
-            val downloadResult = engine.startDownload(
-                url = task.url,
-                formatId = task.formatId,
-                taskId = task.id,
-                processId = processId,
-                speedLimitBytesPerSecond = effectiveLimit,
-                preset = task.preset,
-                downloadSubtitles = task.downloadSubtitles,
-                subtitleLanguages = task.subtitleLanguages,
-                embedSubtitles = task.embedSubtitles,
-                allowPlaylist = false
-            ) { percent, downloadedBytes, totalBytes, speed, etaSeconds ->
+            val isDefaultPreset = task.preset == ExtractionPreset.VIDEO_ORIGINAL &&
+                !task.downloadSubtitles &&
+                task.subtitleLanguages.isEmpty() &&
+                !task.embedSubtitles
+
+            val progressCallback: (Float, Long, Long, Long, Long) -> Unit = { percent, downloadedBytes, totalBytes, speed, etaSeconds ->
                 _tasks.update { currentMap ->
                     val current = currentMap[task.id] ?: task
                     val updated = current.copy(
@@ -210,6 +204,31 @@ class DownloadRepositoryImpl(
                     )
                     currentMap + (task.id to updated)
                 }
+            }
+
+            val downloadResult = if (isDefaultPreset) {
+                engine.startDownload(
+                    url = task.url,
+                    formatId = task.formatId,
+                    taskId = task.id,
+                    processId = processId,
+                    speedLimitBytesPerSecond = effectiveLimit,
+                    onProgress = progressCallback
+                )
+            } else {
+                engine.startDownload(
+                    url = task.url,
+                    formatId = task.formatId,
+                    taskId = task.id,
+                    processId = processId,
+                    speedLimitBytesPerSecond = effectiveLimit,
+                    preset = task.preset,
+                    downloadSubtitles = task.downloadSubtitles,
+                    subtitleLanguages = task.subtitleLanguages,
+                    embedSubtitles = task.embedSubtitles,
+                    allowPlaylist = false,
+                    onProgress = progressCallback
+                )
             }
 
             return downloadResult.fold(
@@ -313,18 +332,12 @@ class DownloadRepositoryImpl(
                 persistTasks()
 
                 val effectiveLimit = task.speedLimitBytesPerSecond ?: _globalSpeedLimit.value
-                val downloadResult = engine.startDownload(
-                    url = targetUrl,
-                    formatId = task.formatId,
-                    taskId = task.id,
-                    processId = newProcessId,
-                    speedLimitBytesPerSecond = effectiveLimit,
-                    preset = task.preset,
-                    downloadSubtitles = task.downloadSubtitles,
-                    subtitleLanguages = task.subtitleLanguages,
-                    embedSubtitles = task.embedSubtitles,
-                    allowPlaylist = false
-                ) { percent, downloadedBytes, totalBytes, speed, etaSeconds ->
+                val isDefaultPreset = task.preset == ExtractionPreset.VIDEO_ORIGINAL &&
+                    !task.downloadSubtitles &&
+                    task.subtitleLanguages.isEmpty() &&
+                    !task.embedSubtitles
+
+                val resumeProgressCallback: (Float, Long, Long, Long, Long) -> Unit = { percent, downloadedBytes, totalBytes, speed, etaSeconds ->
                     _tasks.update { currentMap ->
                         val current = currentMap[id] ?: updatedTask
                         val updated = current.copy(
@@ -337,6 +350,31 @@ class DownloadRepositoryImpl(
                         )
                         currentMap + (id to updated)
                     }
+                }
+
+                val downloadResult = if (isDefaultPreset) {
+                    engine.startDownload(
+                        url = targetUrl,
+                        formatId = task.formatId,
+                        taskId = task.id,
+                        processId = newProcessId,
+                        speedLimitBytesPerSecond = effectiveLimit,
+                        onProgress = resumeProgressCallback
+                    )
+                } else {
+                    engine.startDownload(
+                        url = targetUrl,
+                        formatId = task.formatId,
+                        taskId = task.id,
+                        processId = newProcessId,
+                        speedLimitBytesPerSecond = effectiveLimit,
+                        preset = task.preset,
+                        downloadSubtitles = task.downloadSubtitles,
+                        subtitleLanguages = task.subtitleLanguages,
+                        embedSubtitles = task.embedSubtitles,
+                        allowPlaylist = false,
+                        onProgress = resumeProgressCallback
+                    )
                 }
 
                 downloadResult.fold(
