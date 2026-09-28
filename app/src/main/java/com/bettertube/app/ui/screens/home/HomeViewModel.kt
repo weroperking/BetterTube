@@ -43,6 +43,11 @@ class HomeViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
+    fun onQualityPickerDismissed() {
+        _uiState.value = HomeUiState.Idle
+        currentMetadata = null
+    }
+
     private val _selectedFilter = MutableStateFlow("For You")
     val selectedFilter: StateFlow<String> = _selectedFilter.asStateFlow()
 
