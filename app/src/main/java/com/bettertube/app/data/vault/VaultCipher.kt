@@ -21,7 +21,7 @@ open class VaultCipher @Inject constructor(
             .build()
     }
 
-    open fun encryptFile(source: File, destination: File): Result<Unit> {
+    open fun encryptFile(source: File, destination: File, deleteSourceAfter: Boolean = false): Result<Unit> {
         return try {
             if (!source.exists()) {
                 return Result.failure(IllegalArgumentException("Source file does not exist: ${source.absolutePath}"))
@@ -52,9 +52,11 @@ open class VaultCipher @Inject constructor(
             }
 
             if (destination.exists() && destination.length() > 0) {
-                if (!source.delete()) {
-                    destination.delete()
-                    return Result.failure(IOException("Failed to delete source file after encryption"))
+                if (deleteSourceAfter) {
+                    if (!source.delete()) {
+                        destination.delete()
+                        return Result.failure(IOException("Failed to delete source file after encryption"))
+                    }
                 }
                 Result.success(Unit)
             } else {
