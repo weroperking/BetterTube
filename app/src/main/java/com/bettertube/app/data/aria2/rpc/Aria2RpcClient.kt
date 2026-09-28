@@ -115,26 +115,31 @@ class Aria2RpcClient @Inject constructor(
         return call("aria2.getVersion", emptyList(), Aria2Version::class.java)
     }
 
-    suspend fun getVersionOnPort(port: Int): Aria2Version? {
-        val url = "http://127.0.0.1:$port/jsonrpc"
-        val rpcRequest = JsonRpcRequest(
-            method = "aria2.getVersion",
-            params = listOf(getSecretToken())
-        )
-        val requestAdapter = moshi.adapter(JsonRpcRequest::class.java)
-        val jsonString = requestAdapter.toJson(rpcRequest)
-        val request = Request.Builder()
-            .url(url)
-            .post(jsonString.toRequestBody(JSON_MEDIA_TYPE))
-            .build()
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) return null
-        val bodyString = response.body?.string() ?: return null
-        val responseType = Types.newParameterizedType(JsonRpcResponse::class.java, Aria2Version::class.java)
-        val responseAdapter = moshi.adapter<JsonRpcResponse<Aria2Version>>(responseType)
-        val rpcResponse = responseAdapter.fromJson(bodyString)
-        if (rpcResponse?.error != null) return null
-        return rpcResponse?.result
+    suspend fun getVersionOnPort(port: Int): Aria2Version? = withContext(Dispatchers.IO) {
+        try {
+            val url = "http://127.0.0.1:$port/jsonrpc"
+            val rpcRequest = JsonRpcRequest(
+                method = "aria2.getVersion",
+                params = listOf(getSecretToken())
+            )
+            val requestAdapter = moshi.adapter(JsonRpcRequest::class.java)
+            val jsonString = requestAdapter.toJson(rpcRequest)
+            val request = Request.Builder()
+                .url(url)
+                .post(jsonString.toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val bodyString = response.body?.string() ?: return@withContext null
+                val responseType = Types.newParameterizedType(JsonRpcResponse::class.java, Aria2Version::class.java)
+                val responseAdapter = moshi.adapter<JsonRpcResponse<Aria2Version>>(responseType)
+                val rpcResponse = responseAdapter.fromJson(bodyString)
+                if (rpcResponse?.error != null) return@withContext null
+                return@withContext rpcResponse?.result
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     suspend fun shutdown(): String? {
