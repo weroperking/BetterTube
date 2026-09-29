@@ -73,3 +73,48 @@
 
 # Preserve standard attributes for reflection & serialization
 -keepattributes *Annotation*, InnerClasses, Signature, EnclosingMethod
+
+# ============================================================
+# Apache Commons Compress — required by youtubedl-android
+# ============================================================
+# Commons Compress uses reflection in ExtraFieldUtils to register
+# ZipExtraField implementations at class-load time. R8 must not
+# strip their no-arg constructors or the registry init will throw
+# "AsiExtraField is not a concrete class" on first ZipFile creation.
+
+-keep class org.apache.commons.compress.archivers.zip.** { *; }
+-keep class org.apache.commons.compress.archivers.** { *; }
+-keep class org.apache.commons.compress.utils.** { *; }
+
+# Preserve every class that implements ZipExtraField so reflection
+# can instantiate them from ExtraFieldUtils' static registry.
+-keep class * implements org.apache.commons.compress.archivers.zip.ZipExtraField {
+    public <init>();
+}
+
+# Preserve the ExtraFieldUtils registry itself.
+-keep class org.apache.commons.compress.archivers.zip.ExtraFieldUtils {
+    public static <methods>;
+    static <fields>;
+}
+
+# Explicitly preserve AsiExtraField (the specific class named in the crash).
+-keep class org.apache.commons.compress.archivers.zip.AsiExtraField {
+    public <init>();
+    *;
+}
+
+# ============================================================
+# youtubedl-android — defensive keep rules
+# ============================================================
+# The library uses reflection heavily during Python runtime
+# initialization and process management. These rules prevent
+# the same class of R8-stripping bug from recurring with other
+# reflectively-accessed classes.
+
+-keep class com.yausername.** { *; }
+-keep class com.yausername.youtubedl_common.** { *; }
+-keep class com.yausername.youtubedl_android.** { *; }
+-keep class com.yausername.ffmpeg.** { *; }
+-keep class com.yausername.aria2c.** { *; }
+-dontwarn com.yausername.**
