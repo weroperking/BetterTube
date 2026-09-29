@@ -152,6 +152,7 @@ dependencies {
   implementation(libs.youtubedl.android.library)
   implementation(libs.youtubedl.android.ffmpeg)
   implementation(libs.youtubedl.android.aria2c)
+  implementation(libs.xz)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   // Uncomment to use Firestore:
