@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import com.bettertube.app.domain.repository.Aria2Repository
 import com.bettertube.app.utils.CrashLogger
 import com.yausername.ffmpeg.FFmpeg
+import com.yausername.youtubedl_android.UpdateChannel
 import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +44,13 @@ class BetterTubeApp : Application(), Configuration.Provider {
             try {
                 YoutubeDL.getInstance().init(applicationContext)
                 FFmpeg.getInstance().init(applicationContext)
+                try {
+                    val updateResult = YoutubeDL.getInstance()
+                        .updateYoutubeDL(applicationContext, UpdateChannel.STABLE)
+                    Log.i(TAG, "yt-dlp update result: $updateResult")
+                } catch (e: Exception) {
+                    Log.w(TAG, "yt-dlp update failed (non-fatal): ${e.message}")
+                }
                 engineReady = true
                 Log.i(TAG, "YoutubeDL and FFmpeg engines initialized successfully.")
             } catch (e: Exception) {

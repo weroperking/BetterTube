@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.util.zip.ZipInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,15 +17,45 @@ class Aria2BinaryProvider @Inject constructor(
     }
 
     fun getAria2cPath(): File {
-        val nativeLibDir = File(context.applicationInfo.nativeLibraryDir)
-        val aria2cFile = File(nativeLibDir, "libaria2c.so")
-        if (aria2cFile.exists()) {
-            return aria2cFile
+        val noBackupDir = context.noBackupFilesDir
+        val libExtracted = File(noBackupDir, "youtubedl-android/packages/aria2c/aria2c")
+        if (libExtracted.exists() && libExtracted.canExecute()) {
+            return libExtracted
         }
 
-        // Diagnostic logging
+        val manualExtracted = File(context.filesDir, "aria2c/aria2c")
+        if (manualExtracted.exists() && manualExtracted.canExecute()) {
+            return manualExtracted
+        }
+
+        val nativeLibDir = File(context.applicationInfo.nativeLibraryDir)
+        val aria2cZip = File(nativeLibDir, "libaria2c.zip.so")
+        if (aria2cZip.exists()) {
+            val extractDir = File(context.filesDir, "aria2c")
+            extractDir.mkdirs()
+            try {
+                aria2cZip.inputStream().use { fis ->
+                    ZipInputStream(fis).use { zis ->
+                        val entry = zis.nextEntry
+                        if (entry != null && !entry.isDirectory) {
+                            val outFile = File(extractDir, entry.name)
+                            outFile.outputStream().use { out ->
+                                zis.copyTo(out)
+                            }
+                            outFile.setExecutable(true, false)
+                            if (outFile.exists() && outFile.canExecute()) {
+                                return outFile
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to extract aria2c binary", e)
+            }
+        }
+
         val filesInDir = nativeLibDir.list()?.joinToString(", ") ?: "null (directory does not exist or is empty)"
-        Log.e(TAG, "aria2c binary not found in nativeLibraryDir: ${nativeLibDir.absolutePath}. Contents: [$filesInDir]")
+        Log.e(TAG, "aria2c binary not found. nativeLibraryDir: ${nativeLibDir.absolutePath}. Contents: [$filesInDir]")
         throw IllegalStateException("aria2c binary not found in nativeLibraryDir: ${nativeLibDir.absolutePath}")
     }
 
@@ -33,7 +64,6 @@ class Aria2BinaryProvider @Inject constructor(
             val file = getAria2cPath()
             val executable = file.setExecutable(true, false)
             if (!executable) {
-                // If setExecutable returned false, check if it is already executable
                 file.canExecute()
             } else {
                 true

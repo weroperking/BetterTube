@@ -71,9 +71,11 @@ class Aria2RepositoryImpl @Inject constructor(
                 if (!alreadyRunning) {
                     processManager.start().getOrThrow()
                     var attempts = 0
-                    while (rpcClient.getVersion() == null && attempts < 20) {
+                    while (rpcClient.getVersion() == null && attempts < 60) {
                         delay(500)
                         attempts++
+                        val result = rpcClient.getVersion()
+                        Log.i("Aria2Repo", "Readiness attempt $attempts, result = $result")
                     }
                 }
                 rpcClient.getVersion() != null

@@ -55,6 +55,12 @@ class Aria2ProcessManager @Inject constructor(
         _isRunning.value = true
     }
 
+    private fun getDownloadDirectory(): File {
+        val dir = File(context.getExternalFilesDir(null), "BetterTube")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
     init {
         loadPersistedPort()
     }
@@ -108,10 +114,7 @@ class Aria2ProcessManager @Inject constructor(
             return@withContext Result.failure(e)
         }
 
-        val downloadDir = File(context.getExternalFilesDir(null), "BetterTube")
-        if (!downloadDir.exists()) {
-            downloadDir.mkdirs()
-        }
+        val downloadDir = getDownloadDirectory()
 
         if (!sessionFile.exists()) {
             try {
@@ -120,6 +123,17 @@ class Aria2ProcessManager @Inject constructor(
                 Log.w(TAG, "Failed to create session file", e)
             }
         }
+
+        Log.i("Aria2PM", "=== aria2 startup diagnostic ===")
+        Log.i("Aria2PM", "nativeLibraryDir = ${context.applicationInfo.nativeLibraryDir}")
+        Log.i("Aria2PM", "filesDir = ${context.filesDir.absolutePath}")
+        Log.i("Aria2PM", "binary path resolved to = ${binaryFile.absolutePath}")
+        Log.i("Aria2PM", "binary exists = ${binaryFile.exists()}")
+        Log.i("Aria2PM", "binary canExecute = ${binaryFile.canExecute()}")
+        Log.i("Aria2PM", "binary length = ${binaryFile.length()}")
+        Log.i("Aria2PM", "RPC port to use = $currentPort")
+        Log.i("Aria2PM", "RPC secret length = ${getOrCreateRpcSecret().length}")
+        Log.i("Aria2PM", "Download dir = ${getDownloadDirectory().absolutePath}")
 
         var lastError = "Unknown error"
 
@@ -161,12 +175,20 @@ class Aria2ProcessManager @Inject constructor(
 
             try {
                 val pb = ProcessBuilder(command)
+                pb.environment()["LD_LIBRARY_PATH"] = "${context.noBackupFilesDir}/youtubedl-android/packages/aria2c/usr/lib:${context.applicationInfo.nativeLibraryDir}"
                 pb.redirectErrorStream(true)
                 pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
                 val startedProcess = pb.start()
                 process = startedProcess
 
-                delay(500L)
+                val pid = try { startedProcess.pid() } catch (e: Throwable) { -1 }
+                Log.i("Aria2PM", "Process started, PID = $pid")
+                delay(500)
+                Log.i("Aria2PM", "After 500ms, process alive = ${startedProcess.isAlive}")
+                Log.i("Aria2PM", "Exit value (if dead) = ${runCatching { startedProcess.exitValue() }.getOrNull()}")
+
+                val stderrTail = readLogTail(30)
+                Log.i("Aria2PM", "aria2c stderr tail: $stderrTail")
 
                 if (startedProcess.isAlive) {
                     currentPort = port
@@ -175,9 +197,8 @@ class Aria2ProcessManager @Inject constructor(
                     Log.i(TAG, "aria2c daemon started successfully on port $port")
                     return@withContext Result.success(Unit)
                 } else {
-                    val tail = readLogTail(100)
-                    lastError = tail
-                    Log.w(TAG, "aria2c failed to stay alive on port $port: $tail")
+                    lastError = readLogTail(100)
+                    Log.w(TAG, "aria2c failed to stay alive on port $port: $lastError")
                     startedProcess.destroy()
                 }
             } catch (e: Exception) {
@@ -215,6 +236,7 @@ class Aria2ProcessManager @Inject constructor(
             }
         }
         _isRunning.value = false
+        logFile.delete()
         Result.success(Unit)
     }
 

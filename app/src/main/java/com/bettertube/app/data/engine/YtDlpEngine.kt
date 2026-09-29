@@ -253,6 +253,7 @@ open class YtDlpEngine @Inject constructor(
                 }
                 addOption("--downloader", "aria2c")
                 addOption("--downloader-args", aria2Args)
+                addOption("--extractor-args", "youtube:player_client=android,ios,mweb,tv_embedded;player_skip=webpage,configs")
 
                 val presetArgs = preset.toYtDlpArgs()
                 var i = 0
