@@ -67,16 +67,19 @@ class Aria2RepositoryImpl @Inject constructor(
     init {
         daemonReady = scope.async {
             try {
-                val alreadyRunning = rpcClient.getVersion() != null
-                if (!alreadyRunning) {
+                var version = rpcClient.getVersion()
+                if (version == null) {
                     processManager.start().getOrThrow()
                     var attempts = 0
-                    while (rpcClient.getVersion() == null && attempts < 20) {
+                    while (attempts < 60) {
                         delay(500)
                         attempts++
+                        version = rpcClient.getVersion()
+                        Log.i("Aria2Repo", "Readiness attempt $attempts, result = $version")
+                        if (version != null) break
                     }
                 }
-                rpcClient.getVersion() != null
+                version != null
             } catch (e: Exception) {
                 Log.e(TAG, "Daemon startup failed", e)
                 false
