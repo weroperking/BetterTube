@@ -25,7 +25,11 @@ open class YtDlpEngine @Inject constructor(
 ) {
     open suspend fun extractInfo(url: String): Result<MediaMetadata> = withContext(Dispatchers.IO) {
         try {
-            val videoInfo = YoutubeDL.getInstance().getInfo(url)
+            val request = YoutubeDLRequest(url).apply {
+                addOption("--dump-json")
+                addOption("--extractor-args", "youtube:player_client=android,ios,mweb,tv_embedded;player_skip=webpage,configs")
+            }
+            val videoInfo = YoutubeDL.getInstance().getInfo(request)
             val mappedFormats = (videoInfo.formats ?: emptyList())
                 .filter { format ->
                     val note = format.formatNote ?: ""

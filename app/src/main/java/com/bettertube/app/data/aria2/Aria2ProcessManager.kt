@@ -116,6 +116,10 @@ class Aria2ProcessManager @Inject constructor(
 
         val downloadDir = getDownloadDirectory()
 
+        if (logFile.exists()) {
+            logFile.writeText("")
+        }
+
         if (!sessionFile.exists()) {
             try {
                 sessionFile.createNewFile()
@@ -248,7 +252,12 @@ class Aria2ProcessManager @Inject constructor(
     private fun readLogTail(maxLines: Int): String {
         return try {
             if (!logFile.exists()) return "Log file does not exist"
-            logFile.readLines().takeLast(maxLines).joinToString("\n")
+            val file = File(logFile.absolutePath)
+            val tail = mutableListOf<String>()
+            file.useLines { seq ->
+                seq.forEach { tail.add(it) }
+            }
+            tail.takeLast(maxLines).joinToString("\n")
         } catch (e: Exception) {
             "Could not read log file: ${e.message}"
         }

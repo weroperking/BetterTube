@@ -44,6 +44,8 @@ class BetterTubeApp : Application(), Configuration.Provider {
             try {
                 YoutubeDL.getInstance().init(applicationContext)
                 FFmpeg.getInstance().init(applicationContext)
+                engineReady = true
+                Log.i(TAG, "YoutubeDL and FFmpeg engines initialized successfully.")
                 try {
                     val updateResult = YoutubeDL.getInstance()
                         .updateYoutubeDL(applicationContext, UpdateChannel.STABLE)
@@ -51,8 +53,6 @@ class BetterTubeApp : Application(), Configuration.Provider {
                 } catch (e: Exception) {
                     Log.w(TAG, "yt-dlp update failed (non-fatal): ${e.message}")
                 }
-                engineReady = true
-                Log.i(TAG, "YoutubeDL and FFmpeg engines initialized successfully.")
             } catch (e: Exception) {
                 engineReady = false
                 Log.e(TAG, "Failed to initialize YoutubeDL / FFmpeg engine", e)

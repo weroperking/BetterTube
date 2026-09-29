@@ -36,18 +36,30 @@ class Aria2BinaryProvider @Inject constructor(
             try {
                 aria2cZip.inputStream().use { fis ->
                     ZipInputStream(fis).use { zis ->
-                        val entry = zis.nextEntry
-                        if (entry != null && !entry.isDirectory) {
-                            val outFile = File(extractDir, entry.name)
-                            outFile.outputStream().use { out ->
-                                zis.copyTo(out)
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            if (!entry.isDirectory) {
+                                val name = entry.name
+                                if (name.contains("..")) {
+                                    zis.closeEntry()
+                                    entry = zis.nextEntry
+                                    continue
+                                }
+                                val outFile = File(extractDir, name)
+                                outFile.parentFile?.mkdirs()
+                                outFile.outputStream().use { out ->
+                                    zis.copyTo(out)
+                                }
+                                outFile.setExecutable(true, false)
                             }
-                            outFile.setExecutable(true, false)
-                            if (outFile.exists() && outFile.canExecute()) {
-                                return outFile
-                            }
+                            zis.closeEntry()
+                            entry = zis.nextEntry
                         }
                     }
+                }
+                val extractedBinary = File(extractDir, "aria2c")
+                if (extractedBinary.exists() && extractedBinary.canExecute()) {
+                    return extractedBinary
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to extract aria2c binary", e)
