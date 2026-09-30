@@ -260,7 +260,7 @@ open class YtDlpEngine @Inject constructor(
             }
 
             Log.i("YtDlp", "=== yt-dlp download start ===")
-            Log.i("YtDlp", "URL = $url")
+            Log.i("YtDlp", "URL = ${redactUrl(url)}")
             Log.i("YtDlp", "Format = $effectiveFormatId")
 
             fun buildRequest(extractorArgs: String): YoutubeDLRequest {
@@ -312,7 +312,11 @@ open class YtDlpEngine @Inject constructor(
             val fallbackArgs = "youtube:player_client=tv_embedded,web_safari;player_skip=webpage,configs"
 
             val primaryRequest = buildRequest(primaryArgs)
-            Log.i("YtDlp", "Args = ${primaryRequest.buildCommand()}")
+            val primaryCommand = primaryRequest.buildCommand()
+            Log.i("YtDlp", "Args count = ${primaryCommand.size}, flags = ${primaryCommand.filter { it.startsWith("-") }.joinToString(",")}")
+
+            var lastKnownSpeed = 0L
+            var lastKnownTotal = 0L
 
             var response = try {
                 YoutubeDL.getInstance().execute(primaryRequest, processId) { progress, etaInSeconds, line ->
@@ -321,14 +325,16 @@ open class YtDlpEngine @Inject constructor(
                     val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
                     val speedMatch = speedRegex.find(trimmed)
                     val sizeMatch = sizeRegex.find(trimmed)
-                    val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
-                    val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
+                    val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastKnownSpeed
+                    val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastKnownTotal
+                    if (speedMatch != null) lastKnownSpeed = speedBytes
+                    if (sizeMatch != null && totalBytes > 0) lastKnownTotal = totalBytes
                     val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
-                    val downloadedBytes = (normalizedPercent * totalBytes).toLong()
+                    val downloadedBytes = if (lastKnownTotal > 0) (normalizedPercent * lastKnownTotal).toLong() else 0L
                     onProgress(
                         normalizedPercent,
                         downloadedBytes,
-                        totalBytes,
+                        lastKnownTotal,
                         speedBytes,
                         etaInSeconds
                     )
@@ -338,21 +344,24 @@ open class YtDlpEngine @Inject constructor(
                 if (e.message?.contains("HTTP Error 400") == true) {
                     Log.w("YtDlp", "Primary extractor failed, retrying with fallback")
                     val fallbackRequest = buildRequest(fallbackArgs)
-                    Log.i("YtDlp", "Fallback Args = ${fallbackRequest.buildCommand()}")
+                    val fallbackCommand = fallbackRequest.buildCommand()
+                    Log.i("YtDlp", "Fallback Args count = ${fallbackCommand.size}, flags = ${fallbackCommand.filter { it.startsWith("-") }.joinToString(",")}")
                     YoutubeDL.getInstance().execute(fallbackRequest, processId) { progress, etaInSeconds, line ->
                         val trimmed = line.trim()
                         val speedRegex = Regex("""at\s+([\d.]+)(K|M|G)iB/s""")
                         val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
                         val speedMatch = speedRegex.find(trimmed)
                         val sizeMatch = sizeRegex.find(trimmed)
-                        val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
-                        val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
+                        val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastKnownSpeed
+                        val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastKnownTotal
+                        if (speedMatch != null) lastKnownSpeed = speedBytes
+                        if (sizeMatch != null && totalBytes > 0) lastKnownTotal = totalBytes
                         val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
-                        val downloadedBytes = (normalizedPercent * totalBytes).toLong()
+                        val downloadedBytes = if (lastKnownTotal > 0) (normalizedPercent * lastKnownTotal).toLong() else 0L
                         onProgress(
                             normalizedPercent,
                             downloadedBytes,
-                            totalBytes,
+                            lastKnownTotal,
                             speedBytes,
                             etaInSeconds
                         )
@@ -368,7 +377,7 @@ open class YtDlpEngine @Inject constructor(
                 .lastOrNull { it.startsWith("/") && File(it).exists() }
 
             if (finalPath.isNullOrBlank()) {
-                return@withContext Result.failure(IllegalStateException("yt-dlp did not report an output path: ${response.err}"))
+                return@withContext Result.failure(IllegalStateException("yt-dlp did not report an output path: ${summarizeYtDlpError(response.err)}"))
             }
             return@withContext Result.success(DownloadResult(finalPath))
         } catch (e: Exception) {
@@ -407,5 +416,24 @@ open class YtDlpEngine @Inject constructor(
             "G" -> (base * 1024 * 1024 * 1024).toLong()
             else -> base.toLong()
         }
+    }
+
+    private fun redactUrl(url: String): String {
+        return try {
+            val uri = java.net.URI(url)
+            val host = uri.host ?: "<no-host>"
+            val scheme = uri.scheme ?: "https"
+            val path = uri.path ?: ""
+            "$scheme://$host$path"
+        } catch (e: Exception) {
+            "<unparseable-url>"
+        }
+    }
+
+    private fun summarizeYtDlpError(stderr: String): String {
+        if (stderr.isBlank()) return "(no error output)"
+        val lines = stderr.lines().filter { it.isNotBlank() }
+        val tail = lines.takeLast(3).joinToString(" | ")
+        return tail.take(400).let { if (tail.length > 400) it + "..." else it }
     }
 }
