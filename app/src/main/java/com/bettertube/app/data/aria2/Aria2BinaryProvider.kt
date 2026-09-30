@@ -8,6 +8,9 @@ import java.util.zip.ZipInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// Verified against youtubedl-android 0.15.0 AAR on 2026-09-30:
+// - Aria2c binary extraction from libaria2c.zip.so via ZipInputStream: implemented
+
 @Singleton
 class Aria2BinaryProvider @Inject constructor(
     @ApplicationContext private val context: Context

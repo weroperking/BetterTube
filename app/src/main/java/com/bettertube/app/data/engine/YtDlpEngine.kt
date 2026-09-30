@@ -1,6 +1,7 @@
 package com.bettertube.app.data.engine
 
 import android.content.Context
+import android.util.Log
 import com.bettertube.app.domain.model.ExtractionPreset
 import com.bettertube.app.domain.model.MediaFormat
 import com.bettertube.app.domain.model.MediaMetadata
@@ -17,6 +18,13 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
+
+// Verified against youtubedl-android 0.15.0 AAR on 2026-09-30:
+// - YoutubeDL.getInfo(YoutubeDLRequest): EXISTS (return VideoInfo)
+// - YoutubeDL.execute(YoutubeDLRequest, String, Function3): EXISTS (return YoutubeDLResponse)
+// - YoutubeDL.destroyProcessById(String): EXISTS
+// - YoutubeDL.version(Context): EXISTS (return String)
+// - YoutubeDLRequest.buildCommand(): EXISTS
 
 data class DownloadResult(val finalPath: String)
 
@@ -251,70 +259,107 @@ open class YtDlpEngine @Inject constructor(
                 formatId
             }
 
-            val request = YoutubeDLRequest(url).apply {
-                if (effectiveFormatId.isNotBlank()) {
-                    addOption("-f", effectiveFormatId)
-                }
-                addOption("--downloader", "aria2c")
-                addOption("--downloader-args", aria2Args)
-                addOption("--extractor-args", "youtube:player_client=android,ios,mweb,tv_embedded;player_skip=webpage,configs")
+            Log.i("YtDlp", "=== yt-dlp download start ===")
+            Log.i("YtDlp", "URL = $url")
+            Log.i("YtDlp", "Format = $effectiveFormatId")
 
-                val presetArgs = preset.toYtDlpArgs()
-                var i = 0
-                while (i < presetArgs.size) {
-                    if (i + 1 < presetArgs.size && !presetArgs[i + 1].startsWith("-")) {
-                        addOption(presetArgs[i], presetArgs[i + 1])
-                        i += 2
-                    } else {
-                        addOption(presetArgs[i])
-                        i += 1
+            fun buildRequest(extractorArgs: String): YoutubeDLRequest {
+                return YoutubeDLRequest(url).apply {
+                    if (effectiveFormatId.isNotBlank()) {
+                        addOption("-f", effectiveFormatId)
                     }
-                }
+                    addOption("--downloader", "aria2c")
+                    addOption("--downloader-args", aria2Args)
+                    addOption("--extractor-args", extractorArgs)
 
-                if (!allowPlaylist) {
-                    addOption("--no-playlist")
-                }
-
-                if (downloadSubtitles) {
-                    addOption("--write-subs")
-                    addOption("--write-auto-subs")
-                    if (subtitleLanguages.isNotEmpty()) {
-                        addOption("--sub-langs", subtitleLanguages.joinToString(","))
+                    val presetArgs = preset.toYtDlpArgs()
+                    var i = 0
+                    while (i < presetArgs.size) {
+                        if (i + 1 < presetArgs.size && !presetArgs[i + 1].startsWith("-")) {
+                            addOption(presetArgs[i], presetArgs[i + 1])
+                            i += 2
+                        } else {
+                            addOption(presetArgs[i])
+                            i += 1
+                        }
                     }
-                }
-                if (embedSubtitles) {
-                    addOption("--embed-subs")
-                }
 
-                addOption("--continue")
-                addOption("--no-overwrites")
-                addOption("--no-part")
-                addOption("-o", "${downloadDir.absolutePath}/%(title)s.%(ext)s")
-                addOption("--print", "after_move:filepath")
-                addOption("--no-simulate")
+                    if (!allowPlaylist) {
+                        addOption("--no-playlist")
+                    }
+
+                    if (downloadSubtitles) {
+                        addOption("--write-subs")
+                        addOption("--write-auto-subs")
+                        if (subtitleLanguages.isNotEmpty()) {
+                            addOption("--sub-langs", subtitleLanguages.joinToString(","))
+                        }
+                    }
+                    if (embedSubtitles) {
+                        addOption("--embed-subs")
+                    }
+
+                    addOption("--continue")
+                    addOption("--no-overwrites")
+                    addOption("--no-part")
+                    addOption("-o", "${downloadDir.absolutePath}/%(title)s.%(ext)s")
+                    addOption("--print", "after_move:filepath")
+                    addOption("--no-simulate")
+                }
             }
 
-            var lastSpeed: Long = 0L
-            var lastTotal: Long = 0L
-            val response = YoutubeDL.getInstance().execute(request, processId) { progress, etaInSeconds, line ->
-                val trimmed = line.trim()
-                val speedRegex = Regex("""at\s+([\d.]+)(K|M|G)iB/s""")
-                val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
-                val speedMatch = speedRegex.find(trimmed)
-                val sizeMatch = sizeRegex.find(trimmed)
-                val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastSpeed
-                val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: lastTotal
-                lastSpeed = speedBytes
-                lastTotal = totalBytes
-                val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
-                val downloadedBytes = (normalizedPercent * totalBytes).toLong()
-                onProgress(
-                    normalizedPercent,
-                    downloadedBytes,
-                    totalBytes,
-                    speedBytes,
-                    etaInSeconds
-                )
+            val primaryArgs = "youtube:player_client=android,ios,mweb,tv_embedded;player_skip=webpage,configs"
+            val fallbackArgs = "youtube:player_client=tv_embedded,web_safari;player_skip=webpage,configs"
+
+            val primaryRequest = buildRequest(primaryArgs)
+            Log.i("YtDlp", "Args = ${primaryRequest.buildCommand()}")
+
+            var response = try {
+                YoutubeDL.getInstance().execute(primaryRequest, processId) { progress, etaInSeconds, line ->
+                    val trimmed = line.trim()
+                    val speedRegex = Regex("""at\s+([\d.]+)(K|M|G)iB/s""")
+                    val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
+                    val speedMatch = speedRegex.find(trimmed)
+                    val sizeMatch = sizeRegex.find(trimmed)
+                    val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
+                    val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
+                    val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
+                    val downloadedBytes = (normalizedPercent * totalBytes).toLong()
+                    onProgress(
+                        normalizedPercent,
+                        downloadedBytes,
+                        totalBytes,
+                        speedBytes,
+                        etaInSeconds
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w("YtDlp", "Primary extractor failed: ${e.message}")
+                if (e.message?.contains("HTTP Error 400") == true) {
+                    Log.w("YtDlp", "Primary extractor failed, retrying with fallback")
+                    val fallbackRequest = buildRequest(fallbackArgs)
+                    Log.i("YtDlp", "Fallback Args = ${fallbackRequest.buildCommand()}")
+                    YoutubeDL.getInstance().execute(fallbackRequest, processId) { progress, etaInSeconds, line ->
+                        val trimmed = line.trim()
+                        val speedRegex = Regex("""at\s+([\d.]+)(K|M|G)iB/s""")
+                        val sizeRegex = Regex("""of\s+~?\s*([\d.]+)(K|M|G)iB""")
+                        val speedMatch = speedRegex.find(trimmed)
+                        val sizeMatch = sizeRegex.find(trimmed)
+                        val speedBytes = speedMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
+                        val totalBytes = sizeMatch?.let { parseUnit(it.groupValues[1], it.groupValues[2]) } ?: 0L
+                        val normalizedPercent = (progress / 100f).coerceIn(0.0f, 1.0f)
+                        val downloadedBytes = (normalizedPercent * totalBytes).toLong()
+                        onProgress(
+                            normalizedPercent,
+                            downloadedBytes,
+                            totalBytes,
+                            speedBytes,
+                            etaInSeconds
+                        )
+                    }
+                } else {
+                    throw e
+                }
             }
 
             val finalPath = response.out
@@ -323,7 +368,7 @@ open class YtDlpEngine @Inject constructor(
                 .lastOrNull { it.startsWith("/") && File(it).exists() }
 
             if (finalPath.isNullOrBlank()) {
-                return@withContext Result.failure(IllegalStateException("yt-dlp did not report an output path"))
+                return@withContext Result.failure(IllegalStateException("yt-dlp did not report an output path: ${response.err}"))
             }
             return@withContext Result.success(DownloadResult(finalPath))
         } catch (e: Exception) {
