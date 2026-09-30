@@ -7,7 +7,6 @@ import androidx.work.Configuration
 import com.bettertube.app.domain.repository.Aria2Repository
 import com.bettertube.app.utils.CrashLogger
 import com.yausername.ffmpeg.FFmpeg
-import com.yausername.youtubedl_android.UpdateChannel
 import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +15,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+// Verified against youtubedl-android 0.15.0 AAR on 2026-09-30:
+// - YoutubeDL.init(Context): EXISTS
+// - YoutubeDL.updateYoutubeDL(Context, YoutubeDL.UpdateChannel): EXISTS but forbidden by remediation constraints
+// - Process.pid(): API 26+ only — not used (minSdk is 24)
 
 @HiltAndroidApp
 class BetterTubeApp : Application(), Configuration.Provider {
@@ -47,12 +51,13 @@ class BetterTubeApp : Application(), Configuration.Provider {
                 engineReady = true
                 Log.i(TAG, "YoutubeDL and FFmpeg engines initialized successfully.")
                 try {
-                    val updateResult = YoutubeDL.getInstance()
-                        .updateYoutubeDL(applicationContext, UpdateChannel.STABLE)
-                    Log.i(TAG, "yt-dlp update result: $updateResult")
+                    val version = YoutubeDL.getInstance().version(applicationContext)
+                    Log.i(TAG, "yt-dlp version: $version")
                 } catch (e: Exception) {
-                    Log.w(TAG, "yt-dlp update failed (non-fatal): ${e.message}")
+                    Log.w(TAG, "Could not read yt-dlp version: ${e.message}")
                 }
+                // Note: runtime yt-dlp update is not used in this remediation.
+                // YouTube compatibility is handled via extractor args in YtDlpEngine.
             } catch (e: Exception) {
                 engineReady = false
                 Log.e(TAG, "Failed to initialize YoutubeDL / FFmpeg engine", e)

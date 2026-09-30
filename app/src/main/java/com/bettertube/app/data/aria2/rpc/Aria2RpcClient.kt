@@ -51,22 +51,23 @@ class Aria2RpcClient @Inject constructor(
                 .post(jsonString.toRequestBody(JSON_MEDIA_TYPE))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Log.w(TAG, "RPC request failed: HTTP ${response.code}")
-                return@withContext null
-            }
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "RPC request failed: HTTP ${response.code}")
+                    return@withContext null
+                }
 
-            val bodyString = response.body?.string() ?: return@withContext null
-            val responseType = Types.newParameterizedType(JsonRpcResponse::class.java, clazz)
-            val responseAdapter = moshi.adapter<JsonRpcResponse<T>>(responseType)
-            val rpcResponse = responseAdapter.fromJson(bodyString)
+                val bodyString = response.body?.string() ?: return@withContext null
+                val responseType = Types.newParameterizedType(JsonRpcResponse::class.java, clazz)
+                val responseAdapter = moshi.adapter<JsonRpcResponse<T>>(responseType)
+                val rpcResponse = responseAdapter.fromJson(bodyString)
 
-            if (rpcResponse?.error != null) {
-                Log.w(TAG, "RPC Error: [${rpcResponse.error.code}] ${rpcResponse.error.message}")
-                return@withContext null
+                if (rpcResponse?.error != null) {
+                    Log.w(TAG, "RPC Error: [${rpcResponse.error.code}] ${rpcResponse.error.message}")
+                    return@withContext null
+                }
+                rpcResponse?.result
             }
-            rpcResponse?.result
         } catch (e: Exception) {
             Log.w(TAG, "RPC call to $method failed", e)
             null
@@ -88,23 +89,24 @@ class Aria2RpcClient @Inject constructor(
                 .post(jsonString.toRequestBody(JSON_MEDIA_TYPE))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Log.w(TAG, "RPC request failed: HTTP ${response.code}")
-                return@withContext null
-            }
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "RPC request failed: HTTP ${response.code}")
+                    return@withContext null
+                }
 
-            val bodyString = response.body?.string() ?: return@withContext null
-            val listType = Types.newParameterizedType(List::class.java, clazz)
-            val responseType = Types.newParameterizedType(JsonRpcResponse::class.java, listType)
-            val responseAdapter = moshi.adapter<JsonRpcResponse<List<T>>>(responseType)
-            val rpcResponse = responseAdapter.fromJson(bodyString)
+                val bodyString = response.body?.string() ?: return@withContext null
+                val listType = Types.newParameterizedType(List::class.java, clazz)
+                val responseType = Types.newParameterizedType(JsonRpcResponse::class.java, listType)
+                val responseAdapter = moshi.adapter<JsonRpcResponse<List<T>>>(responseType)
+                val rpcResponse = responseAdapter.fromJson(bodyString)
 
-            if (rpcResponse?.error != null) {
-                Log.w(TAG, "RPC Error: [${rpcResponse.error.code}] ${rpcResponse.error.message}")
-                return@withContext null
+                if (rpcResponse?.error != null) {
+                    Log.w(TAG, "RPC Error: [${rpcResponse.error.code}] ${rpcResponse.error.message}")
+                    return@withContext null
+                }
+                rpcResponse?.result
             }
-            rpcResponse?.result
         } catch (e: Exception) {
             Log.w(TAG, "RPC callList to $method failed", e)
             null

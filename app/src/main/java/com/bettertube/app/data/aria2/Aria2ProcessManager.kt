@@ -23,6 +23,9 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// Verified against youtubedl-android 0.15.0 AAR on 2026-09-30:
+// - Process.pid(): API 26+ only — not used (minSdk is 24)
+
 @Singleton
 class Aria2ProcessManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -39,6 +42,8 @@ class Aria2ProcessManager @Inject constructor(
     private val sessionFile = File(context.filesDir, "aria2.session")
     private val configFile = File(context.filesDir, "aria2.conf")
     private val logFile = File(context.filesDir, "aria2.log")
+    private val stderrFile = File(context.filesDir, "aria2.stderr.log")
+    private val stdoutFile = File(context.filesDir, "aria2.stdout.log")
     private val settingsFile = File(context.filesDir, "settings.json")
 
     private var process: Process? = null
@@ -119,6 +124,12 @@ class Aria2ProcessManager @Inject constructor(
         if (logFile.exists()) {
             logFile.writeText("")
         }
+        if (stderrFile.exists()) {
+            stderrFile.writeText("")
+        }
+        if (stdoutFile.exists()) {
+            stdoutFile.writeText("")
+        }
 
         if (!sessionFile.exists()) {
             try {
@@ -180,19 +191,24 @@ class Aria2ProcessManager @Inject constructor(
             try {
                 val pb = ProcessBuilder(command)
                 pb.environment()["LD_LIBRARY_PATH"] = "${context.noBackupFilesDir}/youtubedl-android/packages/aria2c/usr/lib:${context.applicationInfo.nativeLibraryDir}"
-                pb.redirectErrorStream(true)
-                pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
+                pb.redirectErrorStream(false)
+                pb.redirectError(stderrFile)
+                pb.redirectOutput(stdoutFile)
                 val startedProcess = pb.start()
                 process = startedProcess
 
-                val pid = try { startedProcess.pid() } catch (e: Throwable) { -1 }
-                Log.i("Aria2PM", "Process started, PID = $pid")
-                delay(500)
-                Log.i("Aria2PM", "After 500ms, process alive = ${startedProcess.isAlive}")
-                Log.i("Aria2PM", "Exit value (if dead) = ${runCatching { startedProcess.exitValue() }.getOrNull()}")
-
-                val stderrTail = readLogTail(30)
-                Log.i("Aria2PM", "aria2c stderr tail: $stderrTail")
+                Log.i("Aria2PM", "Process started")
+                delay(1500)
+                val alive = startedProcess.isAlive
+                Log.i("Aria2PM", "After 1500ms, process alive = $alive")
+                if (!alive) {
+                    val stderr = runCatching { stderrFile.readText() }.getOrDefault("<unavailable>")
+                    val stdout = runCatching { stdoutFile.readText() }.getOrDefault("<unavailable>")
+                    Log.e("Aria2PM", "aria2c exited early. stderr:\n$stderr")
+                    Log.e("Aria2PM", "aria2c exited early. stdout:\n$stdout")
+                }
+                val stderrPreview = runCatching { stderrFile.readText().take(200) }.getOrDefault("")
+                Log.i("Aria2PM", "aria2c stderr preview: $stderrPreview")
 
                 if (startedProcess.isAlive) {
                     currentPort = port
@@ -241,6 +257,8 @@ class Aria2ProcessManager @Inject constructor(
         }
         _isRunning.value = false
         logFile.delete()
+        stderrFile.delete()
+        stdoutFile.delete()
         Result.success(Unit)
     }
 
