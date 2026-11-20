@@ -7,6 +7,8 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Clean_%2B_MVVM-blueviolet?style=flat-square)](#architecture)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
 
+
+
 A native, privacy-first Android media downloader and encrypted vault. Powered by `yt-dlp`, an embedded native `aria2` daemon over local JSON-RPC, and hardware-backed AES-256-GCM encryption.
 
 ---
@@ -178,3 +180,6 @@ We welcome contributions from human developers and AI assistants alike!
 ## License
 
 BetterTube is licensed under the [GNU General Public License v3.0](LICENSE).
+
+
+the Project still in Alpha, so expect a lot to break at the current moment 
